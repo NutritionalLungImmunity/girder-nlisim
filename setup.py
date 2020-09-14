@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 with open('README.rst') as readme_file:
     readme = readme_file.read()
 
-requirements = ['celery', 'girder>=3.0.0', 'girder-client>=3.0.0', 'girder-jobs', 'simulation']
+requirements = ['celery', 'girder>=3.0.0', 'girder-client>=3.0.0', 'girder-jobs', 'nlisim']
 
 setup(
     author='Nutritional Lung Immunity',

@@ -1,4 +1,4 @@
--e git+git://github.com/NutritionalLungImmunity/simulation-framework.git@master#egg=simulation
+-e git+git://github.com/NutritionalLungImmunity/simulation-framework.git@rename-nlisim#egg=nlisim
 black
 flake8
 flake8-black

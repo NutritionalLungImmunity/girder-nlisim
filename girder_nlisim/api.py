@@ -9,7 +9,7 @@ from girder.models.folder import Folder
 from girder_jobs.models.job import Job
 
 from girder_nlisim.tasks import GirderConfig, run_simulation
-from simulation.config import SimulationConfig
+from nlisim.config import SimulationConfig
 
 
 class NLI(Resource):

@@ -10,9 +10,9 @@ from girder_jobs.constants import JobStatus
 from girder_jobs.models.job import Job
 
 from girder_nlisim.celery import app
-from simulation.config import SimulationConfig
-from simulation.postprocess import generate_vtk
-from simulation.solver import run_iterator, Status
+from nlisim.config import SimulationConfig
+from nlisim.postprocess import generate_vtk
+from nlisim.solver import run_iterator, Status
 
 logger = getLogger(__name__)
 
