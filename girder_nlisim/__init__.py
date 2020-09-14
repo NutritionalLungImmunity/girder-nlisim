@@ -1,6 +1,6 @@
 from girder.plugin import getPlugin, GirderPlugin
 
-from nli_simulation_runner.api import NLI
+from girder_nlisim.api import NLI
 
 
 class NLIGirderPlugin(GirderPlugin):

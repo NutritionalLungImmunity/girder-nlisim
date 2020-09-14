@@ -9,7 +9,7 @@ from girder_client import GirderClient
 from girder_jobs.constants import JobStatus
 from girder_jobs.models.job import Job
 
-from nli_simulation_runner.celery import app
+from girder_nlisim.celery import app
 from simulation.config import SimulationConfig
 from simulation.postprocess import generate_vtk
 from simulation.solver import run_iterator, Status

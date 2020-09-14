@@ -24,10 +24,10 @@ setup(
     long_description_content_type='text/x-rst',
     include_package_data=True,
     keywords='girder-plugin, nli',
-    name='nli_simulation_runner',
+    name='girder_nlisim',
     packages=find_packages(exclude=['test', 'test.*']),
     url='https://nutritionallungimmunity.org/',
     version='0.1.0',
     zip_safe=False,
-    entry_points={'girder.plugin': ['nli = nli_simulation_runner:NLIGirderPlugin']},
+    entry_points={'girder.plugin': ['nli = girder_nlisim:NLIGirderPlugin']},
 )

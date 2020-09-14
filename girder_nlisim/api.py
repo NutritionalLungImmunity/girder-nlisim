@@ -8,7 +8,7 @@ from girder.constants import AccessType
 from girder.models.folder import Folder
 from girder_jobs.models.job import Job
 
-from nli_simulation_runner.tasks import GirderConfig, run_simulation
+from girder_nlisim.tasks import GirderConfig, run_simulation
 from simulation.config import SimulationConfig
 
 
