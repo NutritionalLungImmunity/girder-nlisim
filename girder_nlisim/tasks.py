@@ -2,6 +2,7 @@ from logging import getLogger
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List
+from urllib.request import urlopen
 
 import attr
 from celery import Task
@@ -15,6 +16,9 @@ from nlisim.postprocess import generate_vtk
 from nlisim.solver import run_iterator, Status
 
 logger = getLogger(__name__)
+GEOMETRY_FILE_URL = (
+    'https://data.nutritionallungimmunity.org/api/v1/file/5ebd86cec1b2cfe0661e681f/download'
+)
 
 
 @attr.s(auto_attribs=True, kw_only=True)
@@ -46,6 +50,13 @@ class GirderConfig:
         return folder
 
 
+def download_geometry():
+    geometry_file_path = Path('geometry.hdf5')
+    if not geometry_file_path.is_file():
+        with urlopen(GEOMETRY_FILE_URL) as f, geometry_file_path.open('wb') as g:
+            g.write(f.read())
+
+
 @app.task(bind=True)
 def run_simulation(
     self: Task,
@@ -70,6 +81,7 @@ def run_simulation(
             job_model.save(job)
 
     try:
+        download_geometry()
         folders: List[str] = []
         time_step = 0
 
