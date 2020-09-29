@@ -87,7 +87,7 @@ class NLI(Resource):
                 raise RestException('Could not find the user\'s "public" folder.')
 
         girder_config = GirderConfig(
-            api='http://localhost:8080/api/v1', token=str(token['_id']), folder=str(folder['_id'])
+            token=str(token['_id']), folder=str(folder['_id'])
         )
         simulation_config = SimulationConfig(NLI_CONFIG_FILE)
 
