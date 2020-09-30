@@ -32,7 +32,7 @@ class GirderConfig:
     folder: str
 
     #: base api url
-    api: str = 'https://data.nutritionallungimmunity.org/api/v1'
+    api: str
 
     @property
     def client(self) -> GirderClient:

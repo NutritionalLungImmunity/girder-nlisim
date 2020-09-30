@@ -1,4 +1,5 @@
 from io import StringIO
+import os
 from pathlib import Path
 
 import attr
@@ -17,6 +18,9 @@ from nlisim.config import SimulationConfig
 
 NLI_JOB_TYPE = 'nli_simulation'
 NLI_CONFIG_FILE = Path(__file__).parent / 'nli-config.ini'
+GIRDER_API = os.environ.get('GIRDER_API', 'https://data.nutritionallungimmunity.org/api/v1').rstrip(
+    '/'
+)
 
 
 class NLI(Resource):
@@ -87,7 +91,7 @@ class NLI(Resource):
                 raise RestException('Could not find the user\'s "public" folder.')
 
         girder_config = GirderConfig(
-            token=str(token['_id']), folder=str(folder['_id'])
+            api=GIRDER_API, token=str(token['_id']), folder=str(folder['_id'])
         )
         simulation_config = SimulationConfig(NLI_CONFIG_FILE)
 
