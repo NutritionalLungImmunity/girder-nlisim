@@ -33,6 +33,7 @@ class NLI(Resource):
         self.route('GET', ('simulation',), self.list_simulations)
         self.route('POST', ('simulation',), self.create_simulation)
         self.route('POST', ('simulation', ':id', 'complete'), self.mark_simulation_complete)
+        self.route('POST', ('simulation', ':id', 'archive'), self.mark_simulation_archived)
 
     @access.user
     @filtermodel(Job)
@@ -123,13 +124,21 @@ class NLI(Resource):
     @filtermodel(Simulation)
     @autoDescribeRoute(
         Description('List simulations.')
+        .param(
+            'includeArchived',
+            'Include archived simulations in the list.',
+            dataType='boolean',
+            default=False,
+        )
         .pagingParams(defaultSort='created', defaultSortDir=SortDir.DESCENDING)
         .errorResponse()
     )
-    def list_simulations(self, limit, offset, sort):
+    def list_simulations(self, limit, offset, sort, includeArchived):
         user = self.getCurrentUser()
         simulation_model = Simulation()
-        return simulation_model.list(user=user, limit=limit, offset=offset, sort=sort)
+        return simulation_model.list(
+            includeArchived=includeArchived, user=user, limit=limit, offset=offset, sort=sort
+        )
 
     @access.user
     @filtermodel(Simulation)
@@ -180,3 +189,28 @@ class NLI(Resource):
     def mark_simulation_complete(self, simulation):
         simulation_model = Simulation()
         return simulation_model.setSimulationComplete(simulation)
+
+    @access.user
+    @filtermodel(Simulation)
+    @autoDescribeRoute(
+        Description('Archive a simulation.')
+        .modelParam(
+            'id',
+            'The simulation id.',
+            model=Simulation,
+            level=AccessType.WRITE,
+            destName='simulation',
+        )
+        .param(
+            'archived',
+            'The archive state.',
+            dataType='boolean',
+            default=True,
+        )
+        .errorResponse()
+        .errorResponse('Write access was denied on the simulation.', 403)
+    )
+    def mark_simulation_archived(self, simulation, archived):
+        simulation['nli']['archived'] = archived
+        simulation_model = Simulation()
+        return simulation_model.save(simulation)

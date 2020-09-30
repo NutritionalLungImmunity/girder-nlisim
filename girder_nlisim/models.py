@@ -23,6 +23,7 @@ class Simulation(Folder):
                 'complete': False,
                 'config': config,
                 'author': f'{creator["firstName"]} {creator["lastName"]}',
+                'archived': False,
             }
         finally:
             self._skipNLIFilter = False
@@ -43,3 +44,11 @@ class Simulation(Folder):
         if not self._skipNLIFilter:
             query['nli.complete'] = {'$exists': True}
         return super(Simulation, self).findOne(query, **kwargs)
+
+    def list(self, includeArchived=False, **kwargs):
+        query = {}
+        if not includeArchived:
+            query = {
+                'nli.archived': {'$ne': True},
+            }
+        return self.findWithPermissions(query, **kwargs)
