@@ -6,7 +6,7 @@ class Simulation(Folder):
     def initialize(self):
         self._skipNLIFilter = False
         super(Simulation, self).initialize()
-        self.ensureIndices(['nli.complete'])
+        self.ensureIndices(['nli.complete', 'nli.creator'])
         self.exposeFields(level=AccessType.READ, fields=('nli',))
 
     def createSimulation(self, parentFolder, name, config, creator, public=None):
@@ -19,7 +19,11 @@ class Simulation(Folder):
             folder = super(Simulation, self).createFolder(
                 parentFolder, name, public=public, creator=creator, allowRename=True
             )
-            folder['nli'] = {'complete': False, 'config': config}
+            folder['nli'] = {
+                'complete': False,
+                'config': config,
+                'author': f'{creator["firstName"]} {creator["lastName"]}',
+            }
         finally:
             self._skipNLIFilter = False
         return self.save(folder)
