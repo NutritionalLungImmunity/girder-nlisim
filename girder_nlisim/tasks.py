@@ -5,6 +5,7 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Dict
 from urllib.request import urlopen
 
+import os; print(os.environ.get("GIRDER_PORT"))
 import attr
 from celery import Task
 from girder_client import GirderClient, HttpError

@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 with open('README.rst') as readme_file:
     readme = readme_file.read()
 
-requirements = ['celery', 'girder>=3.0.0', 'girder-client>=3.0.0', 'girder-jobs', 'nlisim']
+requirements = ['celery<5', 'girder>=3.0.0', 'girder-client>=3.0.0', 'girder-jobs', 'nlisim']
 
 setup(
     author='Nutritional Lung Immunity',
@@ -29,5 +29,5 @@ setup(
     url='https://nutritionallungimmunity.org/',
     version='0.1.0',
     zip_safe=False,
-    entry_points={'girder.plugin': ['nli = girder_nlisim:NLIGirderPlugin']},
+    entry_points={'girder.plugin': ['nli = girder_nlisim.plugin:NLIGirderPlugin']},
 )
