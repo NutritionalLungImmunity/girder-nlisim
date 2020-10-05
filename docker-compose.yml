@@ -23,6 +23,8 @@ girder:
     - "CELERY_BROKER_URL=amqp://rabbitmq:5672/"
     - "GIRDER_API=http://girder:8080/api/v1"
   command: --host 0.0.0.0 --database mongodb://mongodb:27017/girder
+  volumes:
+    - "/data/assetstore"
 
 celery:
   build: .
