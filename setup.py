@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-with open('README.rst') as readme_file:
+with open('README.md') as readme_file:
     readme = readme_file.read()
 
 requirements = ['celery<5', 'girder>=3.0.0', 'girder-client>=3.0.0', 'girder-jobs', 'nlisim']
