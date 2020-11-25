@@ -5,7 +5,6 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Dict
 from urllib.request import urlopen
 
-import os; print(os.environ.get("GIRDER_PORT"))
 import attr
 from celery import Task
 from girder_client import GirderClient, HttpError
@@ -54,11 +53,7 @@ class GirderConfig:
             parameters={
                 'name': name,
                 'folderId': self.folder,
-                'config': json.dumps(
-                    {
-                        'targetTime': target_time,
-                    }
-                ),
+                'config': json.dumps({'targetTime': target_time}),
             },
         )
         self.upload_config(simulation['_id'], simulation_config)
@@ -70,11 +65,7 @@ class GirderConfig:
     def set_status(self, job_id: str, status: int, current: float, total: float):
         return self.client.put(
             f'job/{job_id}',
-            parameters={
-                'status': status,
-                'progressTotal': total,
-                'progressCurrent': current,
-            },
+            parameters={'status': status, 'progressTotal': total, 'progressCurrent': current},
         )
 
     def upload(self, simulation_id: str, name: str, directory: Path) -> str:
