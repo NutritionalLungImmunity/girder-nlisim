@@ -63,12 +63,7 @@ class NLI(Resource):
             'name',
             'The name of the simulation',
         )
-        # TODO: What are the time units of the simulation
-        .param(
-            'targetTime',
-            'The number of (hours?) to run the simulation',
-            dataType='float',
-        )
+        .jsonParam('config', 'Simulation configuration', paramType='body', requireObject=True)
         .modelParam(
             'folderId',
             'The folder store simulation outputs in (defaults to the user\' "public" folder).',
@@ -79,7 +74,8 @@ class NLI(Resource):
         .errorResponse()
         .errorResponse('Write access was denied on the folder.', 403)
     )
-    def execute_simulation(self, name, targetTime, folder=None):
+    def execute_simulation(self, name, config, folder=None):
+        target_time = config.get('simulation', {}).get('run_time', 50)
         user, token = self.getCurrentUser(returnToken=True)
         folder_model = Folder()
         job_model = Job()
@@ -94,7 +90,7 @@ class NLI(Resource):
         girder_config = GirderConfig(
             api=GIRDER_API, token=str(token['_id']), folder=str(folder['_id'])
         )
-        simulation_config = SimulationConfig(NLI_CONFIG_FILE)
+        simulation_config = SimulationConfig(NLI_CONFIG_FILE, config)
 
         # TODO: This would be better stored as a dict, but it's easier once we change the
         #       config object format.
@@ -107,6 +103,7 @@ class NLI(Resource):
             kwargs={
                 'girder_config': attr.asdict(girder_config),
                 'simulation_config': simulation_config_file.getvalue(),
+                'config': config,
             },
             user=user,
         )
@@ -115,7 +112,7 @@ class NLI(Resource):
             name=name,
             girder_config=girder_config,
             simulation_config=simulation_config,
-            target_time=targetTime,
+            target_time=target_time,
             job=job,
         )
         return job
