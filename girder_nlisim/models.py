@@ -1,3 +1,5 @@
+from typing import Any, Dict
+
 from girder.constants import AccessType
 from girder.models.folder import Folder
 
@@ -45,10 +47,11 @@ class Simulation(Folder):
             query['nli.complete'] = {'$exists': True}
         return super(Simulation, self).findOne(query, **kwargs)
 
-    def list(self, includeArchived=False, **kwargs):
-        query = {}
+    def list(self, includeIncomplete=False, includeArchived=False, **kwargs):
+        query: Dict[str, Any] = {}
         if not includeArchived:
-            query = {
-                'nli.archived': {'$ne': True},
-            }
+            query['nli.archived'] = {'$ne': True}
+        if not includeIncomplete:
+            query['nli.complete'] = True
+
         return self.findWithPermissions(query, **kwargs)
