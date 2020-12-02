@@ -1,4 +1,3 @@
-import json
 from logging import getLogger
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
@@ -47,15 +46,15 @@ class GirderConfig:
             f.flush()
             client.uploadFileToFolder(simulation_id, f.name, filename='config.ini')
 
-    def initialize(self, name: str, target_time: float, simulation_config: SimulationConfig):
-        simulation = self.client.post(
-            'nli/simulation',
-            parameters={
-                'name': name,
-                'folderId': self.folder,
-                'config': json.dumps({'targetTime': target_time}),
-            },
-        )
+    def initialize(
+        self,
+        name: str,
+        target_time: float,
+        simulation_config: SimulationConfig,
+        job: str,
+        simulation_id: str,
+    ):
+        simulation = self.client.get(f'folder/{simulation_id}')
         self.upload_config(simulation['_id'], simulation_config)
         return simulation
 
@@ -94,12 +93,16 @@ def run_simulation(
     name: str,
     target_time: float,
     job: Dict[str, Any],
+    simulation_id: str,
 ) -> Dict[str, Any]:
     """Run a simulation and export postprocessed vtk files to girder."""
     current_time = 0
     logger.info('initialize')
     try:
-        simulation = girder_config.initialize(name, target_time, simulation_config)
+
+        simulation = girder_config.initialize(
+            name, target_time, simulation_config, job['_id'], simulation_id
+        )
         girder_config.set_status(job['_id'], JobStatus.RUNNING, current_time, target_time)
 
         download_geometry()
