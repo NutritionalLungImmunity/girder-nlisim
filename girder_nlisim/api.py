@@ -31,7 +31,6 @@ class NLI(Resource):
         self.route('POST', ('job',), self.execute_simulation)
 
         self.route('GET', ('simulation',), self.list_simulations)
-        self.route('POST', ('simulation',), self.create_simulation)
         self.route('POST', ('simulation', ':id', 'complete'), self.mark_simulation_complete)
         self.route('POST', ('simulation', ':id', 'archive'), self.mark_simulation_archived)
 
@@ -87,6 +86,14 @@ class NLI(Resource):
             if folder is None:
                 raise RestException('Could not find the user\'s "public" folder.')
 
+        simulation_model = Simulation()
+        simulation = simulation_model.createSimulation(
+            folder,
+            name,
+            config,
+            user,
+            True,
+        )
         girder_config = GirderConfig(
             api=GIRDER_API, token=str(token['_id']), folder=str(folder['_id'])
         )
@@ -104,9 +111,13 @@ class NLI(Resource):
                 'girder_config': attr.asdict(girder_config),
                 'simulation_config': simulation_config_file.getvalue(),
                 'config': config,
+                'simulation_id': simulation['_id'],
             },
             user=user,
         )
+
+        simulation['nli']['job_id'] = job['_id']
+        simulation_model.save(simulation)
 
         run_simulation.delay(
             name=name,
@@ -114,6 +125,7 @@ class NLI(Resource):
             simulation_config=simulation_config,
             target_time=target_time,
             job=job,
+            simulation_id=simulation['_id'],
         )
         return job
 
@@ -136,37 +148,6 @@ class NLI(Resource):
         return simulation_model.list(
             includeArchived=includeArchived, user=user, limit=limit, offset=offset, sort=sort
         )
-
-    @access.user
-    @filtermodel(Simulation)
-    @autoDescribeRoute(
-        Description('Create a new simulation folder.')
-        .param(
-            'name',
-            'The name of the simulation',
-        )
-        .modelParam(
-            'folderId',
-            'The folder containing the simulation.',
-            model=Folder,
-            level=AccessType.WRITE,
-        )
-        .jsonParam(
-            'config',
-            'The simulation configuration object.',
-            requireObject=True,
-        )
-        .notes(
-            'This endpoint should only be called by the simulation task. '
-            'Use the `POST /job` endpoint to run a simulation.'
-        )
-        .errorResponse()
-        .errorResponse('Write access was denied on the folder.', 403)
-    )
-    def create_simulation(self, name, config, folder, public=None):
-        user = self.getCurrentUser()
-        simulation_model = Simulation()
-        return simulation_model.createSimulation(folder, name, config, user, public)
 
     @access.user
     @filtermodel(Simulation)
