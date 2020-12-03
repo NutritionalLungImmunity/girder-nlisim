@@ -1,5 +1,6 @@
 from girder.constants import AccessType
 from girder.models.folder import Folder
+from girder_jobs.constants import JobStatus
 
 
 class Simulation(Folder):
@@ -24,6 +25,8 @@ class Simulation(Folder):
                 'config': config,
                 'author': f'{creator["firstName"]} {creator["lastName"]}',
                 'archived': False,
+                'progress': 0,
+                'status': JobStatus.INACTIVE,
             }
         finally:
             self._skipNLIFilter = False
