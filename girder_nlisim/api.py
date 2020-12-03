@@ -31,6 +31,7 @@ class NLI(Resource):
         self.route('POST', ('job',), self.execute_simulation)
 
         self.route('GET', ('simulation',), self.list_simulations)
+        self.route('GET', ('simulation', ':id'), self.get_simulation)
         self.route('POST', ('simulation', ':id', 'complete'), self.mark_simulation_complete)
         self.route('POST', ('simulation', ':id', 'archive'), self.mark_simulation_archived)
 
@@ -148,6 +149,22 @@ class NLI(Resource):
         return simulation_model.list(
             includeArchived=includeArchived, user=user, limit=limit, offset=offset, sort=sort
         )
+
+    @access.public
+    @filtermodel(Simulation)
+    @autoDescribeRoute(
+        Description('Get a simulation.')
+        .modelParam(
+            'id',
+            'The simulation id.',
+            model=Simulation,
+            level=AccessType.READ,
+            destName='simulation',
+        )
+        .errorResponse()
+    )
+    def get_simulation(self, simulation):
+        return simulation
 
     @access.user
     @filtermodel(Simulation)
