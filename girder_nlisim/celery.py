@@ -8,4 +8,5 @@ app.conf.update(
     task_serializer='pickle',
     accept_content=['pickle'],
     broker_url=os.environ.get('CELERY_BROKER_URL', 'amqp://localhost:5672/'),
+    broker_transport_options={'queue_name_prefix': 'worker_'},
 )
