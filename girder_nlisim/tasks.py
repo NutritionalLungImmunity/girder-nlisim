@@ -1,4 +1,5 @@
 from logging import getLogger
+import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Dict
@@ -86,38 +87,44 @@ def run_simulation(
     """Run a simulation and export postprocessed vtk files to girder."""
     current_time = 0
     logger.info('initialize')
-    try:
-
-        simulation = girder_config.initialize(
-            name, target_time, simulation_config, job['_id'], simulation_id
-        )
-        girder_config.set_status(job['_id'], JobStatus.RUNNING, current_time, target_time)
-
-        time_step = 0
-
-        for state, status in run_iterator(simulation_config, target_time):
-            current_time = state.time
-            logger.info(f'Simulation time {state.time}')
-            with TemporaryDirectory() as temp_dir:
-                temp_dir_path = Path(temp_dir)
-                generate_vtk(state, temp_dir_path)
-
-                step_name = '%03i' % time_step if status != Status.finalize else 'final'
-                girder_config.upload(simulation['_id'], step_name, temp_dir_path)
-                girder_config.set_status(job['_id'], JobStatus.RUNNING, current_time, target_time)
-
-            time_step += 1
-
-        girder_config.finalize(simulation['_id'])
-        girder_config.set_status(job['_id'], JobStatus.SUCCESS, target_time, target_time)
-        return simulation
-    except HttpError as e:
-        logger.error('Error communicating with girder')
-        logger.error(e.responseText)
-        raise
-    except Exception:
+    with TemporaryDirectory() as run_dir:
+        os.chdir(run_dir)
         try:
-            girder_config.set_status(job['_id'], JobStatus.ERROR, current_time, target_time)
+
+            simulation = girder_config.initialize(
+                name, target_time, simulation_config, job['_id'], simulation_id
+            )
+            girder_config.set_status(job['_id'], JobStatus.RUNNING, current_time, target_time)
+
+            time_step = 0
+
+            for state, status in run_iterator(simulation_config, target_time):
+                current_time = state.time
+                logger.info(f'Simulation time {state.time}')
+                with TemporaryDirectory() as temp_dir:
+                    temp_dir_path = Path(temp_dir)
+                    generate_vtk(state, temp_dir_path)
+
+                    step_name = '%03i' % time_step if status != Status.finalize else 'final'
+                    girder_config.upload(simulation['_id'], step_name, temp_dir_path)
+                    girder_config.set_status(
+                        job['_id'], JobStatus.RUNNING, current_time, target_time
+                    )
+
+                time_step += 1
+
+            girder_config.finalize(simulation['_id'])
+            girder_config.set_status(job['_id'], JobStatus.SUCCESS, target_time, target_time)
+            return simulation
+        except HttpError as e:
+            logger.error('Error communicating with girder')
+            logger.error(e.responseText)
+            raise
         except Exception:
-            logger.exception('Could not set girder error status')
-        raise
+            try:
+                girder_config.set_status(job['_id'], JobStatus.ERROR, current_time, target_time)
+            except Exception:
+                logger.exception('Could not set girder error status')
+            raise
+        finally:
+            os.chdir('/')
