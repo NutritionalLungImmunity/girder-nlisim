@@ -1,5 +1,6 @@
-from girder import events, logger
+from girder import constants, events, logger
 from girder.plugin import getPlugin, GirderPlugin
+from girder_jobs.models.job import Job
 
 from girder_nlisim.api import NLI, NLI_JOB_TYPE
 from girder_nlisim.models import Simulation
@@ -32,3 +33,5 @@ class NLIGirderPlugin(GirderPlugin):
         info['apiRoot'].nli = NLI()
 
         events.bind('jobs.job.update.after', 'nlisim', update_status)
+        job_model = Job()
+        job_model.exposeFields(level=constants.AccessType.ADMIN, fields={'args', 'kwargs'})
