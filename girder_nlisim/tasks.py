@@ -65,11 +65,12 @@ class GirderConfig:
             parameters={'status': status, 'progressTotal': total, 'progressCurrent': current},
         )
 
-    def upload(self, simulation_id: str, name: str, directory: Path) -> str:
+    def upload(self, simulation_id: str, name: str, directory: Path, time: float) -> str:
         """Upload files to girder and return the created folder id."""
         client = self.client
         logger.info(f'Uploading to {name}')
         folder = client.createFolder(simulation_id, name)['_id']
+        client.addMetadataToFolder(folder, {'time': time})
         for file in directory.glob('*'):
             self.client.uploadFileToFolder(folder, str(file))
         return folder
@@ -98,7 +99,7 @@ def run_simulation(
             girder_config.set_status(job['_id'], JobStatus.RUNNING, current_time, target_time)
 
             time_step = 0
-            previous_time : float = 0.0
+            previous_time: float = 0.0
 
             for state, status in run_iterator(simulation_config, target_time):
                 current_time = state.time
@@ -110,7 +111,9 @@ def run_simulation(
                         generate_vtk(state, temp_dir_path)
 
                         step_name = '%03i' % time_step if status != Status.finalize else 'final'
-                        girder_config.upload(simulation['_id'], step_name, temp_dir_path)
+                        girder_config.upload(
+                            simulation['_id'], step_name, temp_dir_path, current_time
+                        )
                         girder_config.set_status(
                             job['_id'], JobStatus.RUNNING, current_time, target_time
                         )
