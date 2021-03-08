@@ -48,10 +48,27 @@ class Simulation(Folder):
             query['nli.complete'] = {'$exists': True}
         return super(Simulation, self).findOne(query, **kwargs)
 
-    def list(self, includeArchived=False, **kwargs):
+    def list(self, includeArchived=False, creator=None, config=None, **kwargs):
         query = {}
         if not includeArchived:
             query = {
                 'nli.archived': {'$ne': True},
             }
+        if creator:
+            query['creatorId'] = creator['_id']
+        if config:
+            query.update(**self.filter_by_config(config))
         return self.findWithPermissions(query, **kwargs)
+
+    @classmethod
+    def filter_by_config(cls, config):
+        query = {}  # type: ignore
+        for c in config:
+            key = f'nli.config.{c["module"]}.{c["key"]}'
+            query[key] = {}
+            min, max = c['range']
+            if min is not None:
+                query[key]['$gte'] = min
+            if max is not None:
+                query[key]['$lte'] = max
+        return query
