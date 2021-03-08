@@ -9,6 +9,7 @@ from girder.api.rest import filtermodel, Resource
 from girder.constants import AccessType, SortDir
 from girder.exceptions import RestException
 from girder.models.folder import Folder
+from girder.models.user import User
 from girder_jobs.constants import JobStatus
 from girder_jobs.models.job import Job
 
@@ -21,6 +22,28 @@ NLI_CONFIG_FILE = Path(__file__).parent / 'nli-config.ini'
 GIRDER_API = os.environ.get('GIRDER_API', 'https://data.nutritionallungimmunity.org/api/v1').rstrip(
     '/'
 )
+
+config_filter_schema = {
+    'title': 'ConfigFilter',
+    'type': 'array',
+    'items': {'$ref': '#/definitions/Config'},
+    'definitions': {
+        'Config': {
+            'title': 'Config',
+            'type': 'object',
+            'properties': {
+                'module': {'title': 'Module', 'type': 'string'},
+                'key': {'title': 'Key', 'type': 'string'},
+                'range': {
+                    'title': 'Range',
+                    'type': 'array',
+                    'items': [{'type': ['number', 'null']}, {'type': ['number', 'null']}],
+                },
+            },
+            'required': ['module', 'key', 'range'],
+        }
+    },
+}
 
 
 class NLI(Resource):
@@ -140,14 +163,50 @@ class NLI(Resource):
             dataType='boolean',
             default=False,
         )
+        .param(
+            'mine',
+            "Only include the current user's simulations",
+            dataType='boolean',
+            default=False,
+        )
+        .modelParam(
+            'creator',
+            'Only list simulations from the given user',
+            model=User,
+            level=AccessType.READ,
+            required=False,
+            paramType='query',
+            destName='creator',
+        )
+        .jsonParam(
+            'config',
+            'Filter by configuration value',
+            paramType='query',
+            schema=config_filter_schema,
+            required=False,
+        )
         .pagingParams(defaultSort='created', defaultSortDir=SortDir.DESCENDING)
         .errorResponse()
     )
-    def list_simulations(self, limit, offset, sort, includeArchived):
+    def list_simulations(
+        self, limit, offset, sort, includeArchived, mine, creator=None, config=None
+    ):
         user = self.getCurrentUser()
         simulation_model = Simulation()
+        if mine and user is None:
+            return []
+        if mine and creator and creator['_id'] != user['_id']:
+            return []
+        if mine:
+            creator = user
         return simulation_model.list(
-            includeArchived=includeArchived, user=user, limit=limit, offset=offset, sort=sort
+            includeArchived=includeArchived,
+            user=user,
+            limit=limit,
+            offset=offset,
+            sort=sort,
+            creator=creator,
+            config=config,
         )
 
     @access.public
