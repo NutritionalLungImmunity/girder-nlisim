@@ -15,6 +15,7 @@ from girder_jobs.models.job import Job
 
 from girder_nlisim.models import Simulation
 from girder_nlisim.tasks import GirderConfig, run_simulation
+from nlisim import __version__ as nlisim_version
 from nlisim.config import SimulationConfig
 
 NLI_JOB_TYPE = 'nli_simulation'
@@ -116,6 +117,7 @@ class NLI(Resource):
             name,
             config,
             user,
+            nlisim_version,
             True,
         )
         girder_config = GirderConfig(

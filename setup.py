@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 with open('README.md') as readme_file:
     readme = readme_file.read()
 
-requirements = ['celery<5', 'girder>=3.0.0', 'girder-client>=3.0.0', 'girder-jobs', 'nlisim>=0.2.5']
+requirements = ['celery<5', 'girder>=3.0.0', 'girder-client>=3.0.0', 'girder-jobs', 'nlisim>=0.2.8']
 
 setup(
     author='Nutritional Lung Immunity',

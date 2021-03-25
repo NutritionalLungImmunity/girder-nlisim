@@ -10,7 +10,7 @@ class Simulation(Folder):
         self.ensureIndices(['nli.complete', 'nli.creator'])
         self.exposeFields(level=AccessType.READ, fields=('nli',))
 
-    def createSimulation(self, parentFolder, name, config, creator, public=None):
+    def createSimulation(self, parentFolder, name, config, creator, version, public=None):
         # This is an ugly way to bypass the custom filter for nlisimulations in the folder
         # listing.  Otherwise, when creating a new folder there are duplicate names.  I
         # don't see a better way around this other than intercept the default folder
@@ -26,6 +26,7 @@ class Simulation(Folder):
                 'author': f'{creator["firstName"]} {creator["lastName"]}',
                 'archived': False,
                 'progress': 0,
+                'version': version,
                 'status': JobStatus.INACTIVE,
             }
         finally:
