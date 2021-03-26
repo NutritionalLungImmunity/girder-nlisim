@@ -27,7 +27,7 @@ setup(
     name='girder_nlisim',
     packages=find_packages(exclude=['test', 'test.*']),
     url='https://nutritionallungimmunity.org/',
-    version='0.3.1',
+    version='0.3.2',
     zip_safe=False,
     entry_points={'girder.plugin': ['nli = girder_nlisim.plugin:NLIGirderPlugin']},
 )
