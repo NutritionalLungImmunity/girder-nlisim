@@ -7,8 +7,9 @@ from typing import Any, Dict
 
 import attr
 from celery import Task
-from girder_client import GirderClient, HttpError
+from girder_client import GirderClient
 from girder_jobs.constants import JobStatus
+from requests.packages.urllib3.util.retry import Retry
 
 from girder_nlisim.celery import app
 from nlisim.config import SimulationConfig
@@ -89,7 +90,15 @@ def run_simulation(
     """Run a simulation and export postprocessed vtk files to girder."""
     current_time = 0
     logger.info('initialize')
-    with TemporaryDirectory() as run_dir:
+    with TemporaryDirectory() as run_dir, girder_config.client.session() as session:
+        # configure retrying with exponential backoff
+        retry = Retry(
+            total=10,
+            backoff_factor=0.1,  # 0.1, 0.2, 0.4, etc.
+            status_forcelist=[413, 429, 500, 503],  # retry on girder's 500 error
+        )
+        session.mount(girder_config.client.urlBase, retry)
+
         os.chdir(run_dir)
         try:
 
@@ -124,10 +133,6 @@ def run_simulation(
             girder_config.finalize(simulation['_id'])
             girder_config.set_status(job['_id'], JobStatus.SUCCESS, target_time, target_time)
             return simulation
-        except HttpError as e:
-            logger.error('Error communicating with girder')
-            logger.error(e.responseText)
-            raise
         except Exception:
             try:
                 girder_config.set_status(job['_id'], JobStatus.ERROR, current_time, target_time)
