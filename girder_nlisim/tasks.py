@@ -9,6 +9,7 @@ import attr
 from celery import Task
 from girder_client import GirderClient
 from girder_jobs.constants import JobStatus
+from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
 from girder_nlisim.celery import app
@@ -97,7 +98,8 @@ def run_simulation(
             backoff_factor=0.1,  # 0.1, 0.2, 0.4, etc.
             status_forcelist=[413, 429, 500, 503],  # retry on girder's 500 error
         )
-        session.mount(girder_config.client.urlBase, retry)
+        adapter = HTTPAdapter(max_retries=retry)
+        session.mount(girder_config.client.urlBase, adapter)
 
         os.chdir(run_dir)
         try:
