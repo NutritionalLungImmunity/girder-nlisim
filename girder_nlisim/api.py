@@ -1,4 +1,6 @@
+import copy
 from io import StringIO
+import math
 import os
 from pathlib import Path
 
@@ -54,6 +56,9 @@ class NLI(Resource):
         self.route('GET', ('job',), self.list_simulation_jobs)
         self.route('POST', ('job',), self.execute_simulation)
 
+        self.route('GET', ('experiment',), self.list_experiment_jobs)
+        self.route('POST', ('experiment',), self.run_experiment)
+
         self.route('GET', ('simulation',), self.list_simulations)
         self.route('GET', ('simulation', ':id'), self.get_simulation)
         self.route('POST', ('simulation', ':id', 'complete'), self.mark_simulation_complete)
@@ -99,7 +104,7 @@ class NLI(Resource):
         .errorResponse('Write access was denied on the folder.', 403)
     )
     def execute_simulation(self, name, config, folder=None):
-        target_time = config.get('simulation', {}).get('run_time', 50)
+        target_time = config.get('simulation', {}).get('run_time', 96)
         user, token = self.getCurrentUser(returnToken=True)
         folder_model = Folder()
         job_model = Job()
@@ -154,6 +159,120 @@ class NLI(Resource):
             simulation_id=simulation['_id'],
         )
         return job
+
+    @access.user
+    @filtermodel(Job)
+    @autoDescribeRoute(
+            Description('Run an experiment (series of simulations) as an async task.')
+                .param(
+                    'name',
+                    'The name of the experiment',
+                    )
+                .jsonParam('config', 'Simulation configuration', paramType='body', requireObject=True)
+                .modelParam(
+                    'folderId',
+                    'The folder store simulation outputs in (defaults to the user\' "public" folder).',
+                    model=Folder,
+                    required=False,
+                    level=AccessType.WRITE,
+                    )
+                .errorResponse()
+                .errorResponse('Write access was denied on the folder.', 403)
+            )
+    def run_experiment(self, experiment_name, config, top_level_folder=None):
+        target_time = config.get('simulation', {}).get('run_time', 96)
+        runs_per_config = config.get('simulation', {}).get('runs_per_config', 1)
+        max_run_digit_len = math.floor(1 + math.log10(runs_per_config))
+
+        user, token = self.getCurrentUser(returnToken=True)
+        folder_model = Folder()
+        job_model = Job()
+
+        if top_level_folder is None:
+            top_level_folder = folder_model.findOne(
+                    {'parentId': user['_id'], 'name': 'Public', 'parentCollection': 'user'}
+                    )
+            if top_level_folder is None:
+                raise RestException('Could not find the user\'s "public" folder.')
+
+        # create a folder to hold the various runs of the simulator
+        experiment_folder = folder_model.createFolder(parent=top_level_folder,
+                                                      name=experiment_name,
+                                                      description='experiment')
+
+        # for each of the configuration values which are lists, we run the simulator with
+        # each of the possible values. (cartesian product)
+        configs = []
+        experimental_variables = []
+        for key, value in config:
+            if isinstance(value, list):
+                experimental_variables.append(key)
+                new_configs = []
+                for cfg in configs:
+                    for val in value:
+                        new_cfg = copy.deepcopy(cfg)
+                        new_cfg[key] = val
+                        new_configs.append(new_cfg)
+                configs = new_configs
+            else:
+                for cfg in configs:
+                    cfg[key] = value
+
+        jobs = []
+
+        for config_variant in configs:
+            for run_number in range(runs_per_config):
+                # create an informative name for the run, noting the run number and the values of the experimental
+                # variables
+                run_name = "-".join(["run-" + str(run_number).zfill(max_run_digit_len)] +
+                                    [str(key) + '-' + str(config_variant[key])
+                                     for key in experimental_variables])
+
+                simulation_model = Simulation()
+                simulation = simulation_model.createSimulation(
+                        experiment_folder,
+                        run_name,
+                        config_variant,
+                        user,
+                        nlisim_version,
+                        True,
+                        )
+                girder_config = GirderConfig(
+                        api=GIRDER_API, token=str(token['_id']), folder=str(top_level_folder['_id'])
+                        )
+                simulation_config = SimulationConfig(NLI_CONFIG_FILE, config_variant)
+
+                # TODO: This would be better stored as a dict, but it's easier once we change the
+                #       config object format.
+                simulation_config_file = StringIO()
+                simulation_config.write(simulation_config_file)
+
+                job = job_model.createJob(
+                        title='NLI Simulation',
+                        type=NLI_JOB_TYPE,
+                        kwargs={
+                            'girder_config': attr.asdict(girder_config),
+                            'simulation_config': simulation_config_file.getvalue(),
+                            'config': config_variant,
+                            'simulation_id': simulation['_id'],
+                            },
+                        user=user,
+                        )
+                jobs.append(job)
+
+                simulation['nli']['job_id'] = job['_id']
+                simulation_model.save(simulation)
+
+                run_simulation.delay(
+                        name=run_name,
+                        girder_config=girder_config,
+                        simulation_config=simulation_config,
+                        target_time=target_time,
+                        job=job,
+                        simulation_id=simulation['_id'],
+                        )
+        return jobs
+
 
     @access.public
     @filtermodel(Simulation)
