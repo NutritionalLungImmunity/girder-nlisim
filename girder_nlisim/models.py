@@ -29,6 +29,9 @@ class Simulation(Folder):
                 'version': version,
                 'status': JobStatus.INACTIVE,
             }
+            super(Simulation, self).setMetadata(
+                folder=parentFolder, metadata={'simulation': True, 'config': config}
+            )
         finally:
             self._skipNLIFilter = False
         return self.save(folder)

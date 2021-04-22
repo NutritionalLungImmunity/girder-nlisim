@@ -51,7 +51,7 @@ config_filter_schema = {
 
 def simulation_runner(
     *,
-    config_variant,
+    config,
     parent_folder,
     job_model: Job,
     run_name,
@@ -63,7 +63,7 @@ def simulation_runner(
     simulation = simulation_model.createSimulation(
         parent_folder,
         run_name,
-        config_variant,
+        config,
         user,
         nlisim_version,
         True,
@@ -71,7 +71,7 @@ def simulation_runner(
     girder_config = GirderConfig(
         api=GIRDER_API, token=str(token['_id']), folder=str(parent_folder['_id'])
     )
-    simulation_config = SimulationConfig(NLI_CONFIG_FILE, config_variant)
+    simulation_config = SimulationConfig(NLI_CONFIG_FILE, config)
     # TODO: This would be better stored as a dict, but it's easier once we change the
     #       config object format.
     simulation_config_file = StringIO()
@@ -82,7 +82,7 @@ def simulation_runner(
         kwargs={
             'girder_config': attr.asdict(girder_config),
             'simulation_config': simulation_config_file.getvalue(),
-            'config': config_variant,
+            'config': config,
             'simulation_id': simulation['_id'],
         },
         user=user,
@@ -169,7 +169,7 @@ class NLI(Resource):
                 raise RestException('Could not find the user\'s "public" folder.')
 
         job = simulation_runner(
-            config_variant=config,
+            config=config,
             parent_folder=folder,
             job_model=job_model,
             run_name=name,
@@ -215,15 +215,6 @@ class NLI(Resource):
             if folder is None:
                 raise RestException('Could not find the user\'s "public" folder.')
 
-        # create a folder to hold the various runs of the simulator
-        # TODO: what if this fails? how does it fail?
-        experiment_folder = folder_model.createFolder(
-            parent=folder,
-            name=experiment_name,
-            description='experiment',
-            reuseExisting=False,
-        )
-
         # for each of the configuration values which are lists, we run the simulator with
         # each of the possible values. (cartesian product)
         configs = []
@@ -242,6 +233,26 @@ class NLI(Resource):
                 for cfg in configs:
                     cfg[key] = value
 
+        # create a folder to hold the various runs of the simulator
+        # TODO: what if this fails? how does it fail?
+        experiment_folder = folder_model.createFolder(
+            parent=folder,
+            name=experiment_name,
+            description='experiment',
+            reuseExisting=False,
+        )
+        folder_model.setMetadata(
+            folder=experiment_folder,
+            metadata={
+                "experiment": True,
+                "experimental variables": {
+                    variable: config[variable] for variable in experimental_variables
+                },
+                "runs per config": runs_per_config,
+                "config": config,
+            },
+        )
+
         jobs = []
 
         for config_variant in configs:
@@ -255,7 +266,7 @@ class NLI(Resource):
 
                 jobs.append(
                     simulation_runner(
-                        config_variant=config_variant,
+                        config=config_variant,
                         parent_folder=experiment_folder,
                         job_model=job_model,
                         run_name=run_name,
