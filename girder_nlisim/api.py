@@ -14,11 +14,11 @@ from girder.models.folder import Folder
 from girder.models.user import User
 from girder_jobs.constants import JobStatus
 from girder_jobs.models.job import Job
+from nlisim import __version__ as nlisim_version
+from nlisim.config import SimulationConfig
 
 from girder_nlisim.models import Simulation
 from girder_nlisim.tasks import GirderConfig, run_simulation
-from nlisim import __version__ as nlisim_version
-from nlisim.config import SimulationConfig
 
 NLI_JOB_TYPE = 'nli_simulation'
 NLI_CONFIG_FILE = Path(__file__).parent / 'nli-config.ini'
@@ -47,6 +47,59 @@ config_filter_schema = {
         }
     },
 }
+
+
+def simulation_runner(
+    *,
+    config_variant,
+    parent_folder,
+    job_model: Job,
+    run_name,
+    target_time,
+    token,
+    user,
+):
+    simulation_model = Simulation()
+    simulation = simulation_model.createSimulation(
+        parent_folder,
+        run_name,
+        config_variant,
+        user,
+        nlisim_version,
+        True,
+    )
+    girder_config = GirderConfig(
+        api=GIRDER_API, token=str(token['_id']), folder=str(parent_folder['_id'])
+    )
+    simulation_config = SimulationConfig(NLI_CONFIG_FILE, config_variant)
+    # TODO: This would be better stored as a dict, but it's easier once we change the
+    #       config object format.
+    simulation_config_file = StringIO()
+    simulation_config.write(simulation_config_file)
+    job = job_model.createJob(
+        title='NLI Simulation',
+        type=NLI_JOB_TYPE,
+        kwargs={
+            'girder_config': attr.asdict(girder_config),
+            'simulation_config': simulation_config_file.getvalue(),
+            'config': config_variant,
+            'simulation_id': simulation['_id'],
+        },
+        user=user,
+    )
+
+    simulation['nli']['job_id'] = job['_id']
+    simulation_model.save(simulation)
+    run_simulation.delay(
+        name=run_name,
+        girder_config=girder_config,
+        simulation_config=simulation_config,
+        target_time=target_time,
+        job=job,
+        simulation_id=simulation['_id'],
+    )
+
+    return job
 
 
 class NLI(Resource):
@@ -105,6 +158,53 @@ class NLI(Resource):
     def execute_simulation(self, name, config, folder=None):
         target_time = config.get('simulation', {}).get('run_time', 96)
         user, token = self.getCurrentUser(returnToken=True)
+        folder_model: Folder = Folder()
+        job_model: Job = Job()
+
+        if folder is None:
+            folder = folder_model.findOne(
+                {'parentId': user['_id'], 'name': 'Public', 'parentCollection': 'user'}
+            )
+            if folder is None:
+                raise RestException('Could not find the user\'s "public" folder.')
+
+        job = simulation_runner(
+            config_variant=config,
+            parent_folder=folder,
+            job_model=job_model,
+            run_name=name,
+            target_time=target_time,
+            token=token,
+            user=user,
+        )
+
+        return job
+
+    @access.user
+    @filtermodel(Job)
+    @autoDescribeRoute(
+        Description('Run an experiment (series of simulations) as an async task.')
+        .param(
+            'name',
+            'The name of the experiment',
+        )
+        .jsonParam('config', 'Simulation configuration', paramType='body', requireObject=True)
+        .modelParam(
+            'folderId',
+            'The folder store simulation outputs in (defaults to the user\' "public" folder).',
+            model=Folder,
+            required=False,
+            level=AccessType.WRITE,
+        )
+        .errorResponse()
+        .errorResponse('Write access was denied on the folder.', 403)
+    )
+    def run_experiment(self, experiment_name, config, folder=None):
+        target_time = config.get('simulation', {}).get('run_time', 96)
+        runs_per_config = config.get('simulation', {}).get('runs_per_config', 1)
+        max_run_digit_len = math.floor(1 + math.log10(runs_per_config))
+
+        user, token = self.getCurrentUser(returnToken=True)
         folder_model = Folder()
         job_model = Job()
 
@@ -115,89 +215,14 @@ class NLI(Resource):
             if folder is None:
                 raise RestException('Could not find the user\'s "public" folder.')
 
-        simulation_model = Simulation()
-        simulation = simulation_model.createSimulation(
-            folder,
-            name,
-            config,
-            user,
-            nlisim_version,
-            True,
-        )
-        girder_config = GirderConfig(
-            api=GIRDER_API, token=str(token['_id']), folder=str(folder['_id'])
-        )
-        simulation_config = SimulationConfig(NLI_CONFIG_FILE, config)
-
-        # TODO: This would be better stored as a dict, but it's easier once we change the
-        #       config object format.
-        simulation_config_file = StringIO()
-        simulation_config.write(simulation_config_file)
-
-        job = job_model.createJob(
-            title='NLI Simulation',
-            type=NLI_JOB_TYPE,
-            kwargs={
-                'girder_config': attr.asdict(girder_config),
-                'simulation_config': simulation_config_file.getvalue(),
-                'config': config,
-                'simulation_id': simulation['_id'],
-            },
-            user=user,
-        )
-
-        simulation['nli']['job_id'] = job['_id']
-        simulation_model.save(simulation)
-
-        run_simulation.delay(
-            name=name,
-            girder_config=girder_config,
-            simulation_config=simulation_config,
-            target_time=target_time,
-            job=job,
-            simulation_id=simulation['_id'],
-        )
-        return job
-
-    @access.user
-    @filtermodel(Job)
-    @autoDescribeRoute(
-            Description('Run an experiment (series of simulations) as an async task.')
-                .param(
-                    'name',
-                    'The name of the experiment',
-                    )
-                .jsonParam('config', 'Simulation configuration', paramType='body', requireObject=True)
-                .modelParam(
-                    'folderId',
-                    'The folder store simulation outputs in (defaults to the user\' "public" folder).',
-                    model=Folder,
-                    required=False,
-                    level=AccessType.WRITE,
-                    )
-                .errorResponse()
-                .errorResponse('Write access was denied on the folder.', 403)
-            )
-    def run_experiment(self, experiment_name, config, top_level_folder=None):
-        target_time = config.get('simulation', {}).get('run_time', 96)
-        runs_per_config = config.get('simulation', {}).get('runs_per_config', 1)
-        max_run_digit_len = math.floor(1 + math.log10(runs_per_config))
-
-        user, token = self.getCurrentUser(returnToken=True)
-        folder_model = Folder()
-        job_model = Job()
-
-        if top_level_folder is None:
-            top_level_folder = folder_model.findOne(
-                    {'parentId': user['_id'], 'name': 'Public', 'parentCollection': 'user'}
-                    )
-            if top_level_folder is None:
-                raise RestException('Could not find the user\'s "public" folder.')
-
         # create a folder to hold the various runs of the simulator
-        experiment_folder = folder_model.createFolder(parent=top_level_folder,
-                                                      name=experiment_name,
-                                                      description='experiment')
+        # TODO: what if this fails? how does it fail?
+        experiment_folder = folder_model.createFolder(
+            parent=folder,
+            name=experiment_name,
+            description='experiment',
+            reuseExisting=False,
+        )
 
         # for each of the configuration values which are lists, we run the simulator with
         # each of the possible values. (cartesian product)
@@ -223,55 +248,23 @@ class NLI(Resource):
             for run_number in range(runs_per_config):
                 # create an informative name for the run, noting the run number and the values of the experimental
                 # variables
-                run_name = "-".join(["run-" + str(run_number).zfill(max_run_digit_len)] +
-                                    [str(key) + '-' + str(config_variant[key])
-                                     for key in experimental_variables])
+                run_name = "-".join(
+                    ["run-" + str(run_number).zfill(max_run_digit_len)]
+                    + [str(key) + '-' + str(config_variant[key]) for key in experimental_variables]
+                )
 
-                simulation_model = Simulation()
-                simulation = simulation_model.createSimulation(
-                        experiment_folder,
-                        run_name,
-                        config_variant,
-                        user,
-                        nlisim_version,
-                        True,
-                        )
-                girder_config = GirderConfig(
-                        api=GIRDER_API, token=str(token['_id']), folder=str(top_level_folder['_id'])
-                        )
-                simulation_config = SimulationConfig(NLI_CONFIG_FILE, config_variant)
-
-                # TODO: This would be better stored as a dict, but it's easier once we change the
-                #       config object format.
-                simulation_config_file = StringIO()
-                simulation_config.write(simulation_config_file)
-
-                job = job_model.createJob(
-                        title='NLI Simulation',
-                        type=NLI_JOB_TYPE,
-                        kwargs={
-                            'girder_config': attr.asdict(girder_config),
-                            'simulation_config': simulation_config_file.getvalue(),
-                            'config': config_variant,
-                            'simulation_id': simulation['_id'],
-                            },
-                        user=user,
-                        )
-                jobs.append(job)
-
-                simulation['nli']['job_id'] = job['_id']
-                simulation_model.save(simulation)
-
-                run_simulation.delay(
-                        name=run_name,
-                        girder_config=girder_config,
-                        simulation_config=simulation_config,
+                jobs.append(
+                    simulation_runner(
+                        config_variant=config_variant,
+                        parent_folder=experiment_folder,
+                        job_model=job_model,
+                        run_name=run_name,
                         target_time=target_time,
-                        job=job,
-                        simulation_id=simulation['_id'],
-                        )
+                        token=token,
+                        user=user,
+                    )
+                )
         return jobs
-
 
     @access.public
     @filtermodel(Simulation)
