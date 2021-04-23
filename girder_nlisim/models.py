@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 
 from girder.constants import AccessType
 from girder.models.folder import Folder
@@ -109,6 +109,7 @@ class Experiment(Folder):
             )
             folder['nli'] = {
                 'config': config,
+                'experimental_variables': experimental_variables,
                 'author': f'{creator["firstName"]} {creator["lastName"]}',
                 'archived': False,
                 'progress': 0,
@@ -154,14 +155,7 @@ class Experiment(Folder):
         return self.findWithPermissions(query, **kwargs)
 
     @classmethod
-    def filter_by_experimental_variables(cls, experimental_variables: List):
-        query = {}  # type: ignore
-        for c in experimental_variables:
-            key = f'nli.config.{c["module"]}.{c["key"]}'
-            query[key] = {}
-            min, max = c['range']
-            if min is not None:
-                query[key]['$gte'] = min
-            if max is not None:
-                query[key]['$lte'] = max
-        return query
+    def filter_by_experimental_variables(cls, experimental_variables: List[Tuple[str, str, list]]):
+        # TODO: find out how to do a query in girder, possibly restucture storage of
+        #  experimental variables
+        return {}
