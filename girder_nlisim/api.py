@@ -22,7 +22,6 @@ from girder_nlisim.models import Experiment, Simulation
 from girder_nlisim.tasks import GirderConfig, run_simulation
 
 NLI_JOB_TYPE = 'nli_simulation'
-NLI_EXPERIMENT_TYPE = 'nli_experiment'
 NLI_CONFIG_FILE = Path(__file__).parent / 'nli-config.ini'
 GIRDER_API = os.environ.get('GIRDER_API', 'https://data.nutritionallungimmunity.org/api/v1').rstrip(
     '/'
