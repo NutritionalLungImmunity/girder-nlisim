@@ -218,20 +218,25 @@ class NLI(Resource):
         # for each of the configuration values which are lists, we run the simulator with
         # each of the possible values. (cartesian product)
         configs = []
-        experimental_variables = []
-        for key, value in config:
-            if isinstance(value, list):
-                experimental_variables.append(key)
-                new_configs = []
-                for cfg in configs:
-                    for val in value:
-                        new_cfg = copy.deepcopy(cfg)
-                        new_cfg[key] = val
-                        new_configs.append(new_cfg)
-                configs = new_configs
-            else:
-                for cfg in configs:
-                    cfg[key] = value
+        experimental_variables: List[Tuple[str, str, list]] = []
+        for module, module_config in config.items():
+            for parameter, parameter_val in module_config:
+                if isinstance(parameter_val, list):
+                    experimental_variables.append((module, parameter, parameter_val))
+                    new_configs = []
+                    for cfg in configs:
+                        for val in parameter:
+                            new_cfg = copy.deepcopy(cfg)
+                            if module not in new_cfg:
+                                new_cfg[module] = dict()
+                            new_cfg[module][parameter] = val
+                            new_configs.append(new_cfg)
+                    configs = new_configs
+                else:
+                    for cfg in configs:
+                        if module not in cfg:
+                            cfg[module] = dict()
+                        cfg[module][parameter] = parameter_val
 
         # create a folder to hold the various runs of the simulator
         # TODO: what if this fails? how does it fail?
