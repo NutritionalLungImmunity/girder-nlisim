@@ -3,6 +3,7 @@ from io import StringIO
 import math
 import os
 from pathlib import Path
+from typing import List, Tuple
 
 import attr
 from girder.api import access
@@ -17,10 +18,11 @@ from girder_jobs.models.job import Job
 from nlisim import __version__ as nlisim_version
 from nlisim.config import SimulationConfig
 
-from girder_nlisim.models import Simulation
+from girder_nlisim.models import Experiment, Simulation
 from girder_nlisim.tasks import GirderConfig, run_simulation
 
 NLI_JOB_TYPE = 'nli_simulation'
+NLI_EXPERIMENT_TYPE = 'nli_experiment'
 NLI_CONFIG_FILE = Path(__file__).parent / 'nli-config.ini'
 GIRDER_API = os.environ.get('GIRDER_API', 'https://data.nutritionallungimmunity.org/api/v1').rstrip(
     '/'
@@ -109,7 +111,10 @@ class NLI(Resource):
         self.route('GET', ('job',), self.list_simulation_jobs)
         self.route('POST', ('job',), self.execute_simulation)
 
-        self.route('POST', ('experiment',), self.run_experiment)
+        self.route('POST', ('experiment-job',), self.run_experiment)
+
+        self.route('GET', ('experiment',), self.list_experiments)
+        self.route('GET', ('experiment', ':id'), self.get_experiment)
 
         self.route('GET', ('simulation',), self.list_simulations)
         self.route('GET', ('simulation', ':id'), self.get_simulation)
@@ -240,22 +245,16 @@ class NLI(Resource):
 
         # create a folder to hold the various runs of the simulator
         # TODO: what if this fails? how does it fail?
-        experiment_folder = folder_model.createFolder(
-            parent=folder,
+        experiment_model = Experiment()
+        experiment_folder = experiment_model.createExperiment(
+            parentFolder=folder,
             name=experiment_name,
-            description='experiment',
-            reuseExisting=False,
-        )
-        folder_model.setMetadata(
-            folder=experiment_folder,
-            metadata={
-                "experiment": True,
-                "experimental variables": {
-                    variable: config[variable] for variable in experimental_variables
-                },
-                "runs per config": runs_per_config,
-                "config": config,
-            },
+            config=config,
+            creator=user,
+            version=nlisim_version,
+            experimental_variables=experimental_variables,
+            runs_per_config=runs_per_config,
+            public=True,
         )
 
         jobs = []
@@ -339,6 +338,52 @@ class NLI(Resource):
         )
 
     @access.public
+    @filtermodel(Experiment)
+    @autoDescribeRoute(
+        Description('List experiments.')
+        .param(
+            'includeArchived',
+            'Include archived experiments in the list.',
+            dataType='boolean',
+            default=False,
+        )
+        .param(
+            'mine',
+            "Only include the current user's experiments",
+            dataType='boolean',
+            default=False,
+        )
+        .modelParam(
+            'creator',
+            'Only list experiments from the given user',
+            model=User,
+            level=AccessType.READ,
+            required=False,
+            paramType='query',
+            destName='creator',
+        )
+        .pagingParams(defaultSort='created', defaultSortDir=SortDir.DESCENDING)
+        .errorResponse()
+    )
+    def list_experiments(self, limit, offset, sort, includeArchived, mine, creator=None):
+        user = self.getCurrentUser()
+        experiment_model = Experiment()
+        if mine and user is None:
+            return []
+        if mine and creator and creator['_id'] != user['_id']:
+            return []
+        if mine:
+            creator = user
+        return experiment_model.list(
+            includeArchived=includeArchived,
+            user=user,
+            limit=limit,
+            offset=offset,
+            sort=sort,
+            creator=creator,
+        )
+
+    @access.public
     @filtermodel(Simulation)
     @autoDescribeRoute(
         Description('Get a simulation.')
@@ -353,6 +398,22 @@ class NLI(Resource):
     )
     def get_simulation(self, simulation):
         return simulation
+
+    @access.public
+    @filtermodel(Experiment)
+    @autoDescribeRoute(
+        Description('Get an experiment.')
+        .modelParam(
+            'id',
+            'The experiment id.',
+            model=Experiment,
+            level=AccessType.READ,
+            destName='experiment',
+        )
+        .errorResponse()
+    )
+    def get_experiment(self, experiment):
+        return experiment
 
     @access.user
     @filtermodel(Simulation)
