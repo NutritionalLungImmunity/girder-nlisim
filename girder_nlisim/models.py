@@ -117,7 +117,7 @@ class Experiment(Folder):
                 'status': JobStatus.INACTIVE,
             }
             super(Experiment, self).setMetadata(
-                folder=parentFolder,
+                folder=folder,
                 metadata={
                     "experiment": True,
                     "experimental variables": experimental_variables,
