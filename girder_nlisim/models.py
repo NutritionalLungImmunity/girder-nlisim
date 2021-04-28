@@ -32,7 +32,7 @@ class Simulation(Folder):
                 'status': JobStatus.INACTIVE,
             }
             super(Simulation, self).setMetadata(
-                folder=parentFolder, metadata={'simulation': True, 'config': config}
+                folder=folder, metadata={'simulation': True, 'config': config}
             )
         finally:
             self._skipNLIFilter = False
