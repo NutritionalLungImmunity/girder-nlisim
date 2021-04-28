@@ -187,7 +187,7 @@ class NLI(Resource):
     @access.user
     @filtermodel(Job)
     @autoDescribeRoute(
-        Description('Run an experiment (series of simulations) as an async task.')
+        Description('Run an experiment (series of simulations) as a collection of async tasks.')
         .param(
             'name',
             'The name of the experiment',
