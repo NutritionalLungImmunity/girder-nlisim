@@ -110,8 +110,7 @@ class NLI(Resource):
         self.route('GET', ('job',), self.list_simulation_jobs)
         self.route('POST', ('job',), self.execute_simulation)
 
-        self.route('POST', ('experiment-job',), self.run_experiment)
-
+        self.route('POST', ('experiment',), self.run_experiment)
         self.route('GET', ('experiment',), self.list_experiments)
         self.route('GET', ('experiment', ':id'), self.get_experiment)
 
