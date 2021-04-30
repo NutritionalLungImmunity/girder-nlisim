@@ -3,10 +3,10 @@ from io import StringIO
 import math
 import os
 from pathlib import Path
-from typing import List, Tuple
+from typing import Any, Dict, List
 
 import attr
-from girder import logger
+import girder
 from girder.api import access
 from girder.api.describe import autoDescribeRoute, Description
 from girder.api.rest import filtermodel, Resource
@@ -100,7 +100,6 @@ def simulation_runner(
         job=job,
         simulation_id=simulation['_id'],
     )
-
     return job
 
 
@@ -225,15 +224,20 @@ class NLI(Resource):
 
         # for each of the configuration values which are lists, we run the simulator with
         # each of the possible values. (cartesian product)
-        configs = []
-        experimental_variables: List[Tuple[str, str, list]] = []
+        configs = [dict()]
+        experimental_variables: List[Dict[str, Any]] = []
         for module, module_config in config.items():
-            for parameter, parameter_val in module_config.items():
-                if isinstance(parameter_val, list):
-                    experimental_variables.append((module, parameter, parameter_val))
+            for parameter, parameter_values in module_config.items():
+                if isinstance(parameter_values, list):
+                    # this will unpack lists appropriately, even of length 0 or 1,
+                    # but those are not experimental variables
+                    if len(parameter_values) > 1:
+                        experimental_variables.append(
+                            {'module': module, 'parameter': parameter, 'values': parameter_values}
+                        )
                     new_configs = []
                     for cfg in configs:
-                        for val in parameter:
+                        for val in parameter_values:
                             new_cfg = copy.deepcopy(cfg)
                             if module not in new_cfg:
                                 new_cfg[module] = dict()
@@ -244,8 +248,7 @@ class NLI(Resource):
                     for cfg in configs:
                         if module not in cfg:
                             cfg[module] = dict()
-                        cfg[module][parameter] = parameter_val
-
+                        cfg[module][parameter] = parameter_values
         # create a folder to hold the various runs of the simulator
         # TODO: what if this fails? how does it fail?
         experiment_model = Experiment()
@@ -259,29 +262,37 @@ class NLI(Resource):
             runs_per_config=runs_per_config,
             public=True,
         )
-
         jobs = []
 
         for config_variant in configs:
             for run_number in range(runs_per_config):
                 # create an informative name for the run, noting the run number and the values of the experimental
                 # variables
-                run_name = "-".join(
-                    ["run-" + str(run_number).zfill(max_run_digit_len)]
-                    + [str(key) + '-' + str(config_variant[key]) for key in experimental_variables]
-                )
-
-                jobs.append(
-                    simulation_runner(
-                        config=config_variant,
-                        parent_folder=experiment_folder,
-                        job_model=job_model,
-                        run_name=run_name,
-                        target_time=target_time,
-                        token=token,
-                        user=user,
+                run_name = "run-" + str(run_number).zfill(max_run_digit_len)
+                for experimental_variable in experimental_variables:
+                    run_name += (
+                        '-'
+                        + str(experimental_variable['module'])
+                        + "."
+                        + str(experimental_variable['parameter'])
+                        + "-"
+                        + str(
+                            config_variant[experimental_variable['module']][
+                                experimental_variable['parameter']
+                            ]
+                        )
                     )
+
+                job = simulation_runner(
+                    config=config_variant,
+                    parent_folder=experiment_folder,
+                    job_model=job_model,
+                    run_name=run_name,
+                    target_time=target_time,
+                    token=token,
+                    user=user,
                 )
+                jobs.append(job)
         return jobs
 
     @access.public
