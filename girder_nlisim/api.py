@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 import attr
+from girder import logger
 from girder.api import access
 from girder.api.describe import autoDescribeRoute, Description
 from girder.api.rest import filtermodel, Resource
@@ -202,8 +203,12 @@ class NLI(Resource):
         .errorResponse()
         .errorResponse('Write access was denied on the folder.', 403)
     )
-    def run_experiment(self, experiment_name, config, folder=None):
-        target_time = config.get('simulation', {}).get('run_time', 96)
+    def run_experiment(self, name, config, folder=None):
+        target_time = config.get('simulation', {}).get('run_time', 0)
+        # if there is no run_time, this is not a valid request
+        if target_time <= 0:
+            raise RestException('Invalid run time for experiment.')
+
         runs_per_config = config.get('simulation', {}).get('runs_per_config', 1)
         max_run_digit_len = math.floor(1 + math.log10(runs_per_config))
 
@@ -223,7 +228,7 @@ class NLI(Resource):
         configs = []
         experimental_variables: List[Tuple[str, str, list]] = []
         for module, module_config in config.items():
-            for parameter, parameter_val in module_config:
+            for parameter, parameter_val in module_config.items():
                 if isinstance(parameter_val, list):
                     experimental_variables.append((module, parameter, parameter_val))
                     new_configs = []
@@ -246,7 +251,7 @@ class NLI(Resource):
         experiment_model = Experiment()
         experiment_folder = experiment_model.createExperiment(
             parentFolder=folder,
-            name=experiment_name,
+            name=name,
             config=config,
             creator=user,
             version=nlisim_version,
