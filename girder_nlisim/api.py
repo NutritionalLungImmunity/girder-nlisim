@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import attr
-import girder
 from girder.api import access
 from girder.api.describe import autoDescribeRoute, Description
 from girder.api.rest import filtermodel, Resource
@@ -60,6 +59,7 @@ def simulation_runner(
     target_time,
     token,
     user,
+    in_experiment: bool = False,
 ):
     simulation_model = Simulation()
     simulation = simulation_model.createSimulation(
@@ -69,6 +69,7 @@ def simulation_runner(
         user,
         nlisim_version,
         True,
+        in_experiment,
     )
     girder_config = GirderConfig(
         api=GIRDER_API, token=str(token['_id']), folder=str(parent_folder['_id'])
@@ -179,6 +180,7 @@ class NLI(Resource):
             target_time=target_time,
             token=token,
             user=user,
+            in_experiment=False,
         )
 
         return job
@@ -206,7 +208,7 @@ class NLI(Resource):
         target_time = config.get('simulation', {}).get('run_time', 0)
         # if there is no run_time, this is not a valid request
         if target_time <= 0:
-            raise RestException('Invalid run time for experiment.')
+            raise RestException('Invalid (or unprovided) run time for experiment.')
 
         runs_per_config = config.get('simulation', {}).get('runs_per_config', 1)
         max_run_digit_len = math.floor(1 + math.log10(runs_per_config))
@@ -268,7 +270,7 @@ class NLI(Resource):
             for run_number in range(runs_per_config):
                 # create an informative name for the run, noting the run number and the values of the experimental
                 # variables
-                run_name = "run-" + str(run_number).zfill(max_run_digit_len)
+                run_name = name + "-run-" + str(run_number).zfill(max_run_digit_len)
                 for experimental_variable in experimental_variables:
                     run_name += (
                         '-'
@@ -291,6 +293,7 @@ class NLI(Resource):
                     target_time=target_time,
                     token=token,
                     user=user,
+                    in_experiment=True,
                 )
                 jobs.append(job)
         return jobs
@@ -308,6 +311,12 @@ class NLI(Resource):
         .param(
             'mine',
             "Only include the current user's simulations",
+            dataType='boolean',
+            default=False,
+        )
+        .param(
+            'experiments',
+            "Include simulations that are part of an experiment",
             dataType='boolean',
             default=False,
         )
@@ -331,7 +340,7 @@ class NLI(Resource):
         .errorResponse()
     )
     def list_simulations(
-        self, limit, offset, sort, includeArchived, mine, creator=None, config=None
+        self, limit, offset, sort, includeArchived, mine, experiments, creator=None, config=None
     ):
         user = self.getCurrentUser()
         simulation_model = Simulation()
@@ -349,6 +358,7 @@ class NLI(Resource):
             sort=sort,
             creator=creator,
             config=config,
+            in_experiment=experiments,
         )
 
     @access.public

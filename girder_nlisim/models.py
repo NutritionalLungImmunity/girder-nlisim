@@ -12,7 +12,9 @@ class Simulation(Folder):
         self.ensureIndices(['nli.complete', 'nli.creator'])
         self.exposeFields(level=AccessType.READ, fields=('nli',))
 
-    def createSimulation(self, parentFolder, name, config, creator, version, public=None):
+    def createSimulation(
+        self, parentFolder, name, config, creator, version, public=None, in_experiment: bool = False
+    ):
         # This is an ugly way to bypass the custom filter for nlisimulations in the folder
         # listing.  Otherwise, when creating a new folder there are duplicate names.  I
         # don't see a better way around this other than intercept the default folder
@@ -30,6 +32,8 @@ class Simulation(Folder):
                 'progress': 0,
                 'version': version,
                 'status': JobStatus.INACTIVE,
+                'simulation': True,
+                'in_experiment': in_experiment,
             }
             super(Simulation, self).setMetadata(
                 folder=folder, metadata={'simulation': True, 'config': config}
@@ -44,22 +48,30 @@ class Simulation(Folder):
 
     def find(self, query=None, **kwargs):
         query = query or {}
+        # Sometimes we need to search all folders e.g. to avoid name conflicts, other times
+        # just for simulation folders. We can just check simulation folders by seeing if
+        # the nli.simulation field is set
         if not self._skipNLIFilter:
-            query['nli.complete'] = {'$exists': True}
+            query['nli.simulation'] = {'$exists': True}
         return super(Simulation, self).find(query, **kwargs)
 
     def findOne(self, query=None, **kwargs):
         query = query or {}
+        # Sometimes we need to search all folders e.g. to avoid name conflicts, other times
+        # just for simulation folders. We can just check simulation folders by seeing if
+        # the nli.simulation field is set
         if not self._skipNLIFilter:
-            query['nli.complete'] = {'$exists': True}
+            query['nli.simulation'] = {'$exists': True}
         return super(Simulation, self).findOne(query, **kwargs)
 
-    def list(self, includeArchived=False, creator=None, config=None, **kwargs):
+    def list(self, includeArchived=False, creator=None, config=None, in_experiment=False, **kwargs):
         query = {}
         if not includeArchived:
             query = {
                 'nli.archived': {'$ne': True},
             }
+        if in_experiment:
+            query['nli.in_experiment'] = {'$eq': True}
         if creator:
             query['creatorId'] = creator['_id']
         if config:
@@ -115,6 +127,7 @@ class Experiment(Folder):
                 'progress': 0,
                 'version': version,
                 'status': JobStatus.INACTIVE,
+                'experiment': True,
             }
             super(Experiment, self).setMetadata(
                 folder=folder,
@@ -132,14 +145,20 @@ class Experiment(Folder):
 
     def find(self, query=None, **kwargs):
         query = query or {}
-        # if not self._skipNLIFilter:
-        #     query['nli.complete'] = {'$exists': True}
+        # Sometimes we need to search all folders e. g. to avoid folder name conflicts, other
+        # times just for simulation folders. We can just check simulation folders by seeing
+        # if the nli.experiment field is set
+        if not self._skipNLIFilter:
+            query['nli.experiment'] = {'$exists': True}
         return super(Experiment, self).find(query, **kwargs)
 
     def findOne(self, query=None, **kwargs):
         query = query or {}
-        # if not self._skipNLIFilter:
-        #     query['nli.complete'] = {'$exists': True}
+        # Sometimes we need to search all folders e. g. to avoid folder name conflicts, other
+        # times just for simulation folders. We can just check simulation folders by seeing
+        # if the nli.experiment field is set
+        if not self._skipNLIFilter:
+            query['nli.experiment'] = {'$exists': True}
         return super(Experiment, self).findOne(query, **kwargs)
 
     def list(self, includeArchived=False, creator=None, experimental_variables=None, **kwargs):
