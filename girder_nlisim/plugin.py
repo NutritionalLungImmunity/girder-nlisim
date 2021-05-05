@@ -1,6 +1,6 @@
-import girder
 from girder import constants, events, logger
 from girder.plugin import getPlugin, GirderPlugin
+from girder_jobs.constants import JobStatus
 from girder_jobs.models.job import Job
 
 from girder_nlisim.api import NLI, NLI_JOB_TYPE
@@ -36,6 +36,38 @@ def update_status(event):
 
         # update the total progress (=average progress)
         experiment['nli']['progress'] = sum(per_sim_progress.values()) / len(per_sim_progress)
+
+        # update job status
+        experiment['nli']['per_sim_status'][str(simulation_id)] = job['status']
+        # any errors or cancellations count as an error or cancellation of the experiment, experiment
+        # doesn't become active until all of the sims are active.
+        if any(
+            status == JobStatus.ERROR for status in experiment['nli']['per_sim_status'].values()
+        ):
+            experiment['nli']['per_sim_status'][str(simulation_id)] = JobStatus.ERROR
+        elif any(
+            status == JobStatus.CANCELED for status in experiment['nli']['per_sim_status'].values()
+        ):
+            experiment['nli']['per_sim_status'][str(simulation_id)] = JobStatus.CANCELED
+        elif any(
+            status == JobStatus.INACTIVE for status in experiment['nli']['per_sim_status'].values()
+        ):
+            experiment['nli']['per_sim_status'][str(simulation_id)] = JobStatus.INACTIVE
+        else:
+            # in this case, all statuses must be QUEUED, RUNNING, or SUCCESS
+            # we take the "minimum" for the experiment's status.
+            if any(
+                status == JobStatus.QUEUED
+                for status in experiment['nli']['per_sim_status'].values()
+            ):
+                experiment['nli']['per_sim_status'][str(simulation_id)] = JobStatus.QUEUED
+            elif any(
+                status == JobStatus.RUNNING
+                for status in experiment['nli']['per_sim_status'].values()
+            ):
+                experiment['nli']['per_sim_status'][str(simulation_id)] = JobStatus.RUNNING
+            else:
+                experiment['nli']['per_sim_status'][str(simulation_id)] = JobStatus.SUCCESS
 
         experiment_model.save(experiment)
 

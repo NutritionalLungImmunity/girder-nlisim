@@ -129,6 +129,7 @@ class Experiment(Folder):
                 'progress': 0,
                 'per_sim_progress': dict(),
                 'version': version,
+                'per_sim_status': dict(),
                 'status': JobStatus.INACTIVE,
                 'experiment': True,
             }
