@@ -13,7 +13,7 @@ class Simulation(Folder):
         self.exposeFields(level=AccessType.READ, fields=('nli',))
 
     def createSimulation(
-        self, parentFolder, name, config, creator, version, public=None, in_experiment: bool = False
+        self, *, parentFolder, name, config, creator, version, public=None, experiment=None
     ):
         # This is an ugly way to bypass the custom filter for nlisimulations in the folder
         # listing.  Otherwise, when creating a new folder there are duplicate names.  I
@@ -33,7 +33,8 @@ class Simulation(Folder):
                 'version': version,
                 'status': JobStatus.INACTIVE,
                 'simulation': True,
-                'in_experiment': in_experiment,
+                'in_experiment': (experiment is not None),
+                'experiment_id': None if experiment is None else experiment['_id'],
             }
             super(Simulation, self).setMetadata(
                 folder=folder, metadata={'simulation': True, 'config': config}
@@ -124,7 +125,9 @@ class Experiment(Folder):
                 'experimental_variables': experimental_variables,
                 'author': f'{creator["firstName"]} {creator["lastName"]}',
                 'archived': False,
+                'component_simulations': [],
                 'progress': 0,
+                'per_sim_progress': dict(),
                 'version': version,
                 'status': JobStatus.INACTIVE,
                 'experiment': True,

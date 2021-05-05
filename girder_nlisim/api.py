@@ -59,18 +59,24 @@ def simulation_runner(
     target_time,
     token,
     user,
-    in_experiment: bool = False,
+    experiment=None,
 ):
     simulation_model = Simulation()
     simulation = simulation_model.createSimulation(
-        parent_folder,
-        run_name,
-        config,
-        user,
-        nlisim_version,
-        True,
-        in_experiment,
+        parentFolder=parent_folder,
+        name=run_name,
+        config=config,
+        creator=user,
+        version=nlisim_version,
+        public=True,
+        experiment=experiment,
     )
+
+    # if this is to be part of an experiment, let the experiment know about it
+    if experiment is not None:
+        experiment['nli']['component_simulations'].append(simulation['_id'])
+        experiment['nli']['per_sim_progress'][simulation['_id']] = 0
+
     girder_config = GirderConfig(
         api=GIRDER_API, token=str(token['_id']), folder=str(parent_folder['_id'])
     )
@@ -87,6 +93,8 @@ def simulation_runner(
             'simulation_config': simulation_config_file.getvalue(),
             'config': config,
             'simulation_id': simulation['_id'],
+            'in_experiment': (experiment is not None),
+            'experiment_id': None if experiment is None else experiment['_id'],
         },
         user=user,
     )
@@ -180,7 +188,6 @@ class NLI(Resource):
             target_time=target_time,
             token=token,
             user=user,
-            in_experiment=False,
         )
 
         return job
@@ -293,7 +300,7 @@ class NLI(Resource):
                     target_time=target_time,
                     token=token,
                     user=user,
-                    in_experiment=True,
+                    experiment=experiment_folder,
                 )
                 jobs.append(job)
         return jobs
