@@ -75,7 +75,10 @@ def simulation_runner(
     # if this is to be part of an experiment, let the experiment know about it
     if experiment is not None:
         experiment['nli']['component_simulations'].append(simulation['_id'])
-        experiment['nli']['per_sim_progress'][simulation['_id']] = 0
+        experiment['nli']['per_sim_progress'][str(simulation['_id'])] = 0.0
+        experiment['nli']['per_sim_status'][str(simulation['_id'])] = JobStatus.INACTIVE
+        experiment_model = Experiment()
+        experiment_model.save(experiment)
 
     girder_config = GirderConfig(
         api=GIRDER_API, token=str(token['_id']), folder=str(parent_folder['_id'])
@@ -109,7 +112,7 @@ def simulation_runner(
         job=job,
         simulation_id=simulation['_id'],
     )
-    return job
+    return job, simulation
 
 
 class NLI(Resource):
@@ -180,7 +183,7 @@ class NLI(Resource):
             if folder is None:
                 raise RestException('Could not find the user\'s "public" folder.')
 
-        job = simulation_runner(
+        job, simulation = simulation_runner(
             config=config,
             parent_folder=folder,
             job_model=job_model,
@@ -292,7 +295,7 @@ class NLI(Resource):
                         )
                     )
 
-                job = simulation_runner(
+                job, simulation = simulation_runner(
                     config=config_variant,
                     parent_folder=experiment_folder,
                     job_model=job_model,
@@ -303,6 +306,7 @@ class NLI(Resource):
                     experiment=experiment_folder,
                 )
                 jobs.append(job)
+
         return jobs
 
     @access.public
