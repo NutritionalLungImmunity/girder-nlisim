@@ -9,13 +9,13 @@ import attr
 from celery import Task
 from girder_client import GirderClient
 from girder_jobs.constants import JobStatus
+from nlisim.config import SimulationConfig
+from nlisim.postprocess import generate_vtk
+from nlisim.solver import run_iterator, Status
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
 from girder_nlisim.celery import app
-from nlisim.config import SimulationConfig
-from nlisim.postprocess import generate_vtk
-from nlisim.solver import run_iterator, Status
 
 logger = getLogger(__name__)
 
@@ -103,7 +103,6 @@ def run_simulation(
 
         os.chdir(run_dir)
         try:
-
             simulation = girder_config.initialize(
                 name, target_time, simulation_config, job['_id'], simulation_id
             )

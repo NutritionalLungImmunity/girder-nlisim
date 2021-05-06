@@ -1,9 +1,12 @@
+from pathlib import Path
+
 from setuptools import find_packages, setup
 
 with open('README.md') as readme_file:
     readme = readme_file.read()
 
-requirements = ['celery<5', 'girder>=3.0.0', 'girder-client>=3.0.0', 'girder-jobs', 'nlisim>=0.2.9']
+with open(Path(__file__).parent / 'requirements.txt', 'r') as file:
+    requirements = file.read().splitlines()
 
 setup(
     author='Nutritional Lung Immunity',
@@ -27,7 +30,7 @@ setup(
     name='girder_nlisim',
     packages=find_packages(exclude=['test', 'test.*']),
     url='https://nutritionallungimmunity.org/',
-    version='0.3.4',
+    version='0.4.0',
     zip_safe=False,
     entry_points={'girder.plugin': ['nli = girder_nlisim.plugin:NLIGirderPlugin']},
 )
