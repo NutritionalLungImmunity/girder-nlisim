@@ -34,7 +34,7 @@ def update_status(event):
         experiment['nli']['per_sim_progress'][str(simulation_id)] = simulation['nli']['progress']
         per_sim_progress = experiment['nli']['per_sim_progress']
 
-        # update the total progress (=average progress)
+        # update the total progress (defining this as the mean progress)
         experiment['nli']['progress'] = sum(per_sim_progress.values()) / len(per_sim_progress)
 
         # update job status
@@ -44,15 +44,15 @@ def update_status(event):
         if any(
             status == JobStatus.ERROR for status in experiment['nli']['per_sim_status'].values()
         ):
-            experiment['nli']['per_sim_status'][str(simulation_id)] = JobStatus.ERROR
+            experiment['nli']['status'] = JobStatus.ERROR
         elif any(
             status == JobStatus.CANCELED for status in experiment['nli']['per_sim_status'].values()
         ):
-            experiment['nli']['per_sim_status'][str(simulation_id)] = JobStatus.CANCELED
+            experiment['nli']['status'] = JobStatus.CANCELED
         elif any(
             status == JobStatus.INACTIVE for status in experiment['nli']['per_sim_status'].values()
         ):
-            experiment['nli']['per_sim_status'][str(simulation_id)] = JobStatus.INACTIVE
+            experiment['nli']['status'] = JobStatus.INACTIVE
         else:
             # in this case, all statuses must be QUEUED, RUNNING, or SUCCESS
             # we take the "minimum" for the experiment's status.
@@ -60,14 +60,14 @@ def update_status(event):
                 status == JobStatus.QUEUED
                 for status in experiment['nli']['per_sim_status'].values()
             ):
-                experiment['nli']['per_sim_status'][str(simulation_id)] = JobStatus.QUEUED
+                experiment['nli']['status'] = JobStatus.QUEUED
             elif any(
                 status == JobStatus.RUNNING
                 for status in experiment['nli']['per_sim_status'].values()
             ):
-                experiment['nli']['per_sim_status'][str(simulation_id)] = JobStatus.RUNNING
+                experiment['nli']['status'] = JobStatus.RUNNING
             else:
-                experiment['nli']['per_sim_status'][str(simulation_id)] = JobStatus.SUCCESS
+                experiment['nli']['status'] = JobStatus.SUCCESS
 
         experiment_model.save(experiment)
 
