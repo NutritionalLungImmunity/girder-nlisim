@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import attr
-from girder.api import access
+from girder.api import access, rest
 from girder.api.describe import autoDescribeRoute, Description
 from girder.api.rest import filtermodel, rawResponse, Resource
 from girder.constants import AccessType, SortDir
@@ -455,8 +455,7 @@ class NLI(Resource):
         return experiment
 
     @access.public
-    @filtermodel(Experiment)
-    @rawResponse
+    @rest.rawResponse
     @autoDescribeRoute(
         Description('Get the statistics of an experiment in csv format.')
         .modelParam(
@@ -470,11 +469,11 @@ class NLI(Resource):
     )
     def get_experiment_csv(self, experiment):
         # TODO: implement
-        return "TBI: to be implemented"
+        rest.setResponseHeader('Content-Type', 'text/csv')
+        return "TBI,to,be,implemented"
 
     @access.public
-    @filtermodel(Simulation)
-    @rawResponse
+    @rest.rawResponse
     @autoDescribeRoute(
             Description('Get the statistics of a simulation in csv format.')
                 .modelParam(
@@ -488,11 +487,10 @@ class NLI(Resource):
             )
     def get_simulation_csv(self, simulation):
         # TODO: implement
-        return "TBI: to be implemented"
+        rest.setResponseHeader('Content-Type', 'text/csv')
+        return "TBI,to,be,implemented"
 
     @access.public
-    @filtermodel(Experiment)
-    @rawResponse
     @autoDescribeRoute(
         Description('Get the statistics of an experiment in json format.')
         .modelParam(
@@ -506,11 +504,9 @@ class NLI(Resource):
     )
     def get_experiment_json(self, experiment):
         # TODO: implement
-        return "TBI: to be implemented"
+        return {'message': "TBI: to be implemented"}
 
     @access.public
-    @filtermodel(Simulation)
-    @rawResponse
     @autoDescribeRoute(
             Description('Get the statistics of a simulation in json format.')
                 .modelParam(
@@ -524,7 +520,7 @@ class NLI(Resource):
             )
     def get_simulation_json(self, simulation):
         # TODO: implement
-        return "TBI: to be implemented"
+        return {'message': "TBI: to be implemented"}
 
     @access.user
     @filtermodel(Simulation)
