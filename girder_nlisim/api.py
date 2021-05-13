@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 import attr
 from girder.api import access
 from girder.api.describe import autoDescribeRoute, Description
-from girder.api.rest import filtermodel, Resource
+from girder.api.rest import filtermodel, rawResponse, Resource
 from girder.constants import AccessType, SortDir
 from girder.exceptions import RestException
 from girder.models.folder import Folder
@@ -125,11 +125,15 @@ class NLI(Resource):
         self.route('POST', ('experiment',), self.run_experiment)
         self.route('GET', ('experiment',), self.list_experiments)
         self.route('GET', ('experiment', ':id'), self.get_experiment)
+        self.route('GET', ('experiment', ':id', 'csv'), self.get_experiment_csv)
+        self.route('GET', ('experiment', ':id', 'json'), self.get_experiment_json)
 
         self.route('GET', ('simulation',), self.list_simulations)
         self.route('GET', ('simulation', ':id'), self.get_simulation)
         self.route('POST', ('simulation', ':id', 'complete'), self.mark_simulation_complete)
         self.route('POST', ('simulation', ':id', 'archive'), self.mark_simulation_archived)
+        self.route('GET', ('simulation', ':id', 'csv'), self.get_simulation_csv)
+        self.route('GET', ('simulation', ':id', 'json'), self.get_simulation_json)
 
     @access.user
     @filtermodel(Job)
@@ -449,6 +453,78 @@ class NLI(Resource):
     )
     def get_experiment(self, experiment):
         return experiment
+
+    @access.public
+    @filtermodel(Experiment)
+    @rawResponse
+    @autoDescribeRoute(
+        Description('Get the statistics of an experiment in csv format.')
+        .modelParam(
+            'id',
+            'The experiment id.',
+            model=Experiment,
+            level=AccessType.READ,
+            destName='experiment',
+        )
+        .errorResponse()
+    )
+    def get_experiment_csv(self, experiment):
+        # TODO: implement
+        return "TBI: to be implemented"
+
+    @access.public
+    @filtermodel(Simulation)
+    @rawResponse
+    @autoDescribeRoute(
+            Description('Get the statistics of a simulation in csv format.')
+                .modelParam(
+                    'id',
+                    'The simulation id.',
+                    model=Simulation,
+                    level=AccessType.READ,
+                    destName='simulation',
+                    )
+                .errorResponse()
+            )
+    def get_simulation_csv(self, simulation):
+        # TODO: implement
+        return "TBI: to be implemented"
+
+    @access.public
+    @filtermodel(Experiment)
+    @rawResponse
+    @autoDescribeRoute(
+        Description('Get the statistics of an experiment in json format.')
+        .modelParam(
+            'id',
+            'The experiment id.',
+            model=Experiment,
+            level=AccessType.READ,
+            destName='experiment',
+        )
+        .errorResponse()
+    )
+    def get_experiment_json(self, experiment):
+        # TODO: implement
+        return "TBI: to be implemented"
+
+    @access.public
+    @filtermodel(Simulation)
+    @rawResponse
+    @autoDescribeRoute(
+            Description('Get the statistics of a simulation in json format.')
+                .modelParam(
+                    'id',
+                    'The simulation id.',
+                    model=Simulation,
+                    level=AccessType.READ,
+                    destName='simulation',
+                    )
+                .errorResponse()
+            )
+    def get_simulation_json(self, simulation):
+        # TODO: implement
+        return "TBI: to be implemented"
 
     @access.user
     @filtermodel(Simulation)
