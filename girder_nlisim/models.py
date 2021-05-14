@@ -1,5 +1,6 @@
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
+import girder
 from girder.constants import AccessType
 from girder.models.folder import Folder
 from girder_jobs.constants import JobStatus
@@ -46,6 +47,21 @@ class Simulation(Folder):
     def setSimulationComplete(self, simulation):
         simulation.get('nli', {})['complete'] = True
         return self.save(simulation)
+
+    def get_summary_stats(self, simulation) -> Dict[int, Dict]:
+        """Creates the summary statistics of a simulation in json form"""
+        # I'm just going to assume that all subfolders are for time-steps but I'll skip them
+        # if they don't have a time field set. (or, horrors, if it is set to -1)
+        stats = dict()
+        subfolders = super(Simulation, self).childFolders(simulation, 'folder')
+        for folder in subfolders:
+            time = folder.get('time', -1)
+            if time == -1:
+                continue
+            stats[time] = folder.get('nli', {})
+
+        return stats
+
 
     def find(self, query=None, **kwargs):
         query = query or {}

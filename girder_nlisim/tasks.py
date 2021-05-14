@@ -74,7 +74,7 @@ class GirderConfig:
         client = self.client
         logger.info(f'Uploading to {name}')
         folder = client.createFolder(simulation_id, name)['_id']
-        client.addMetadataToFolder(folder, metadata={'time': time, **metadata})
+        client.addMetadataToFolder(folder, metadata={'time': time, 'nli': metadata})
         for file in directory.glob('*'):
             self.client.uploadFileToFolder(folder, str(file))
         return folder

@@ -519,8 +519,8 @@ class NLI(Resource):
         .errorResponse()
     )
     def get_simulation_json(self, simulation):
-        # TODO: implement
-        return {'message': "TBI: to be implemented"}
+        simulation_model = Simulation()
+        return simulation_model.get_summary_stats(simulation)
 
     @access.user
     @filtermodel(Simulation)
