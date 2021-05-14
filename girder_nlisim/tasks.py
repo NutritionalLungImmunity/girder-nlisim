@@ -10,7 +10,7 @@ from celery import Task
 from girder_client import GirderClient
 from girder_jobs.constants import JobStatus
 from nlisim.config import SimulationConfig
-from nlisim.postprocess import generate_vtk
+from nlisim.postprocess import generate_summary_stats, generate_vtk
 from nlisim.solver import run_iterator, Status
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
@@ -67,12 +67,14 @@ class GirderConfig:
             parameters={'status': status, 'progressTotal': total, 'progressCurrent': current},
         )
 
-    def upload(self, simulation_id: str, name: str, directory: Path, time: float) -> str:
+    def upload(
+        self, simulation_id: str, name: str, directory: Path, time: float, metadata: dict
+    ) -> str:
         """Upload files to girder and return the created folder id."""
         client = self.client
         logger.info(f'Uploading to {name}')
         folder = client.createFolder(simulation_id, name)['_id']
-        client.addMetadataToFolder(folder, {'time': time})
+        client.addMetadataToFolder(folder, metadata={'time': time, **metadata})
         for file in directory.glob('*'):
             self.client.uploadFileToFolder(folder, str(file))
         return folder
@@ -119,10 +121,11 @@ def run_simulation(
                     with TemporaryDirectory() as temp_dir:
                         temp_dir_path = Path(temp_dir)
                         generate_vtk(state, temp_dir_path)
+                        stats = generate_summary_stats(state)
 
                         step_name = '%04i' % time_step if status != Status.finalize else 'final'
                         girder_config.upload(
-                            simulation['_id'], step_name, temp_dir_path, current_time
+                            simulation['_id'], step_name, temp_dir_path, current_time, stats
                         )
 
                         girder_config.set_status(

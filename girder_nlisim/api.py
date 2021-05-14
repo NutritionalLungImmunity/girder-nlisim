@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 import attr
 from girder.api import access, rest
 from girder.api.describe import autoDescribeRoute, Description
-from girder.api.rest import filtermodel, rawResponse, Resource
+from girder.api.rest import filtermodel, Resource
 from girder.constants import AccessType, SortDir
 from girder.exceptions import RestException
 from girder.models.folder import Folder
@@ -475,16 +475,16 @@ class NLI(Resource):
     @access.public
     @rest.rawResponse
     @autoDescribeRoute(
-            Description('Get the statistics of a simulation in csv format.')
-                .modelParam(
-                    'id',
-                    'The simulation id.',
-                    model=Simulation,
-                    level=AccessType.READ,
-                    destName='simulation',
-                    )
-                .errorResponse()
-            )
+        Description('Get the statistics of a simulation in csv format.')
+        .modelParam(
+            'id',
+            'The simulation id.',
+            model=Simulation,
+            level=AccessType.READ,
+            destName='simulation',
+        )
+        .errorResponse()
+    )
     def get_simulation_csv(self, simulation):
         # TODO: implement
         rest.setResponseHeader('Content-Type', 'text/csv')
@@ -508,16 +508,16 @@ class NLI(Resource):
 
     @access.public
     @autoDescribeRoute(
-            Description('Get the statistics of a simulation in json format.')
-                .modelParam(
-                    'id',
-                    'The simulation id.',
-                    model=Simulation,
-                    level=AccessType.READ,
-                    destName='simulation',
-                    )
-                .errorResponse()
-            )
+        Description('Get the statistics of a simulation in json format.')
+        .modelParam(
+            'id',
+            'The simulation id.',
+            model=Simulation,
+            level=AccessType.READ,
+            destName='simulation',
+        )
+        .errorResponse()
+    )
     def get_simulation_json(self, simulation):
         # TODO: implement
         return {'message': "TBI: to be implemented"}
