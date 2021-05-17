@@ -48,20 +48,26 @@ class Simulation(Folder):
         simulation.get('nli', {})['complete'] = True
         return self.save(simulation)
 
-    def get_summary_stats(self, simulation) -> Dict[int, Dict]:
-        """Creates the summary statistics of a simulation in json form"""
+    def get_summary_stats(self, simulation, user) -> Dict[str, Dict]:
+        """Creates the summary statistics of a simulation in json form."""
         # I'm just going to assume that all subfolders are for time-steps but I'll skip them
-        # if they don't have a time field set. (or, horrors, if it is set to -1)
+        # if they don't have a time field set. (or, horrors, if it is negative)
         stats = dict()
-        subfolders = super(Simulation, self).childFolders(simulation, 'folder')
+
+        self._skipNLIFilter = True
+        # comments in the girder internals indicate that eager evaluation is better here,
+        # as there can be time outs
+        subfolders = list(
+            super(Simulation, self).childFolders(simulation, parentType='folder', user=user)
+        )
+        self._skipNLIFilter = False
         for folder in subfolders:
-            time = folder.get('time', -1)
-            if time == -1:
+            time = folder['meta'].get('time', -1)
+            if time < 0:
                 continue
-            stats[time] = folder.get('nli', {})
+            stats[time] = folder['meta'].get('nli', {})
 
         return stats
-
 
     def find(self, query=None, **kwargs):
         query = query or {}

@@ -1,4 +1,6 @@
 import copy
+import csv
+import io
 from io import StringIO
 import math
 import os
@@ -472,7 +474,7 @@ class NLI(Resource):
         rest.setResponseHeader('Content-Type', 'text/csv')
         return "TBI,to,be,implemented"
 
-    @access.public
+    @access.user
     @rest.rawResponse
     @autoDescribeRoute(
         Description('Get the statistics of a simulation in csv format.')
@@ -486,9 +488,41 @@ class NLI(Resource):
         .errorResponse()
     )
     def get_simulation_csv(self, simulation):
-        # TODO: implement
-        rest.setResponseHeader('Content-Type', 'text/csv')
-        return "TBI,to,be,implemented"
+        user = self.getCurrentUser()
+        simulation_model = Simulation()
+        summary_stats = simulation_model.get_summary_stats(simulation, user)
+
+        # The values of summary stats will typically be nested dicts, now we flatten them
+        # to a dotted form e.g.
+        # d = {'a': {'b':1, 'c':2}, 'd': {'b': 3, 'c':4 }}
+        # flatten(d) -> [('a.b', 1), ('a.c', 2), ('d.b', 3), ('d.c', 4)]
+        def flatten(d, prefix=None):
+            prefix = list() if prefix is None else prefix
+            result = []
+            for key, value in d.items():
+                if isinstance(value, dict):
+                    result.extend(flatten(value, prefix=[*prefix, key]))
+                else:
+                    result.append(('.'.join([*prefix, key]), value))
+            return result
+
+        summary_stats = {time: flatten(data) for time, data in summary_stats.items()}
+        # move it to a list and sort by time
+        summary_stats = [(time, data) for time, data in summary_stats.items()]
+        summary_stats.sort(key=lambda x: x[0])
+
+        # write a csv to memory
+        with io.StringIO() as sio:
+            csvwriter = csv.writer(sio, dialect='excel')
+            if len(summary_stats) > 0:
+                # header
+                csvwriter.writerow(["time", *[label for label, value in summary_stats[0][1]]])
+
+                for time, data in summary_stats:
+                    csvwriter.writerow([time, *[value for label, value in data]])
+
+            rest.setResponseHeader('Content-Type', 'text/csv')
+            return sio.getvalue()
 
     @access.public
     @autoDescribeRoute(
@@ -506,7 +540,7 @@ class NLI(Resource):
         # TODO: implement
         return {'message': "TBI: to be implemented"}
 
-    @access.public
+    @access.user
     @autoDescribeRoute(
         Description('Get the statistics of a simulation in json format.')
         .modelParam(
@@ -519,8 +553,9 @@ class NLI(Resource):
         .errorResponse()
     )
     def get_simulation_json(self, simulation):
+        user = self.getCurrentUser()
         simulation_model = Simulation()
-        return simulation_model.get_summary_stats(simulation)
+        return simulation_model.get_summary_stats(simulation, user)
 
     @access.user
     @filtermodel(Simulation)
