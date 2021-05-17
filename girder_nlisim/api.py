@@ -509,7 +509,7 @@ class NLI(Resource):
         summary_stats = {time: flatten(data) for time, data in summary_stats.items()}
         # move it to a list and sort by time
         summary_stats = [(time, data) for time, data in summary_stats.items()]
-        summary_stats.sort(key=lambda x: x[0])
+        summary_stats.sort(key=lambda x: float(x[0]))
 
         # write a csv to memory
         with io.StringIO() as sio:
