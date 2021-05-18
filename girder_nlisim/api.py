@@ -456,7 +456,7 @@ class NLI(Resource):
     def get_experiment(self, experiment):
         return experiment
 
-    @access.public
+    @access.user
     @rest.rawResponse
     @autoDescribeRoute(
         Description('Get the statistics of an experiment in csv format.')
@@ -524,7 +524,7 @@ class NLI(Resource):
             rest.setResponseHeader('Content-Type', 'text/csv')
             return sio.getvalue()
 
-    @access.public
+    @access.user
     @autoDescribeRoute(
         Description('Get the statistics of an experiment in json format.')
         .modelParam(
@@ -537,8 +537,9 @@ class NLI(Resource):
         .errorResponse()
     )
     def get_experiment_json(self, experiment):
-        # TODO: implement
-        return {'message': "TBI: to be implemented"}
+        user = self.getCurrentUser()
+        experiment_model = Experiment()
+        return experiment_model.get_summary_stats(experiment, user)
 
     @access.user
     @autoDescribeRoute(
