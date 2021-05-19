@@ -2,6 +2,7 @@ import copy
 import csv
 import io
 from io import StringIO
+import itertools
 import math
 import os
 from pathlib import Path
@@ -115,6 +116,23 @@ def simulation_runner(
         simulation_id=simulation['_id'],
     )
     return job, simulation
+
+
+def flatten_dict(d, prefix=None):
+    """Recursively flatten a dictionary to a dotted format.
+
+    e.g.
+    d = {'a': {'b':1, 'c':2}, 'd': {'b': 3, 'c':4 }}
+    flatten(d) -> [('a.b', 1), ('a.c', 2), ('d.b', 3), ('d.c', 4)]
+    """
+    prefix = list() if prefix is None else prefix
+    result = []
+    for key, value in d.items():
+        if isinstance(value, dict):
+            result.extend(flatten_dict(value, prefix=[*prefix, key]))
+        else:
+            result.append(('.'.join([*prefix, key]), value))
+    return result
 
 
 class NLI(Resource):
@@ -470,9 +488,92 @@ class NLI(Resource):
         .errorResponse()
     )
     def get_experiment_csv(self, experiment):
-        # TODO: implement
-        rest.setResponseHeader('Content-Type', 'text/csv')
-        return "TBI,to,be,implemented"
+        user = self.getCurrentUser()
+        experiment_model = Experiment()
+        experiment_stats = experiment_model.get_summary_stats(experiment, user)
+
+        # collect time steps, in order
+        time_steps = list(
+            set(
+                time
+                for sim_id, sim_data in experiment_stats['stats'].items()
+                for time, stats in sim_data.items()
+            )
+        )
+        time_steps.sort(key=lambda x: float(x))  # string ordering != float ordering
+
+        # create a natural ordering for the simulations by their experimental variables
+        simulation_ids = list(experiment_stats['simulation config'].keys())
+        simulation_ids.sort(
+            key=lambda ident: flatten_dict(experiment_stats['simulation config'][ident])
+        )
+
+        num_simulations = len(simulation_ids)
+
+        # bail with empty response, if no data
+        if len(time_steps) <= 0 or num_simulations <= 0:
+            return ''
+
+        per_sim_variables = [
+            var_name
+            for var_name, var_value in flatten_dict(
+                experiment_stats['stats'][simulation_ids[0]][time_steps[0]]
+            )
+        ]
+        num_vars = len(per_sim_variables)
+
+        with io.StringIO() as sio:
+            csvwriter = csv.writer(sio, dialect='excel')
+
+            # write out a pre-header to list experimental parameters
+            csvwriter.writerow(['Simulation Name', 'Parameter', 'Value'])
+            for sim_id in simulation_ids:
+                for n, (param_name, param_value) in enumerate(
+                    flatten_dict(experiment_stats['simulation config'][sim_id])
+                ):
+                    csvwriter.writerow(
+                        [
+                            experiment_stats['names'][sim_id] if n == 0 else '',
+                            param_name,
+                            param_value,
+                        ]
+                    )
+
+            # write the names of the simulations as a higher level header
+            csvwriter.writerow(
+                ['']
+                + list(
+                    itertools.chain.from_iterable(
+                        [experiment_stats['names'][sim_id]] + (num_vars - 1) * ['']
+                        for sim_id in simulation_ids
+                    )
+                )
+            )
+
+            # another header, each sim has the same set of variables, which get repeated for each
+            csvwriter.writerow(["time"] + num_simulations * per_sim_variables)
+
+            # now to actually write the data. note that not all simulations may have all time steps
+            # as this could be called while the simulations are still running
+            for time_step in time_steps:
+                csvwriter.writerow(
+                    [float(time_step)]
+                    + list(
+                        itertools.chain.from_iterable(
+                            [
+                                var_value
+                                for var_name, var_value in flatten_dict(
+                                    experiment_stats['stats'][sim_id][time_step]
+                                )
+                            ]
+                            if time_step in experiment_stats['stats'][sim_id]
+                            else num_vars * ['']
+                            for sim_id in simulation_ids
+                        )
+                    )
+                )
+
+            return sio.getvalue()
 
     @access.user
     @rest.rawResponse
@@ -493,20 +594,7 @@ class NLI(Resource):
         summary_stats = simulation_model.get_summary_stats(simulation, user)
 
         # The values of summary stats will typically be nested dicts, now we flatten them
-        # to a dotted form e.g.
-        # d = {'a': {'b':1, 'c':2}, 'd': {'b': 3, 'c':4 }}
-        # flatten(d) -> [('a.b', 1), ('a.c', 2), ('d.b', 3), ('d.c', 4)]
-        def flatten(d, prefix=None):
-            prefix = list() if prefix is None else prefix
-            result = []
-            for key, value in d.items():
-                if isinstance(value, dict):
-                    result.extend(flatten(value, prefix=[*prefix, key]))
-                else:
-                    result.append(('.'.join([*prefix, key]), value))
-            return result
-
-        summary_stats = {time: flatten(data) for time, data in summary_stats.items()}
+        summary_stats = {time: flatten_dict(data) for time, data in summary_stats.items()}
         # move it to a list and sort by time
         summary_stats = [(time, data) for time, data in summary_stats.items()]
         summary_stats.sort(key=lambda x: float(x[0]))
