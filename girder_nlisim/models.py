@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 from girder.constants import AccessType
 from girder.models.folder import Folder
@@ -46,6 +46,27 @@ class Simulation(Folder):
     def setSimulationComplete(self, simulation):
         simulation.get('nli', {})['complete'] = True
         return self.save(simulation)
+
+    def get_summary_stats(self, simulation, user) -> Dict[str, Dict]:
+        """Creates the summary statistics of a simulation in json form."""
+        # I'm just going to assume that all subfolders are for time-steps but I'll skip them
+        # if they don't have a time field set. (or, horrors, if it is negative)
+        stats = dict()
+
+        self._skipNLIFilter = True
+        # comments in the girder internals indicate that eager evaluation is better here,
+        # as there can be time outs
+        subfolders = list(
+            super(Simulation, self).childFolders(simulation, parentType='folder', user=user)
+        )
+        self._skipNLIFilter = False
+        for folder in subfolders:
+            time = folder['meta'].get('time', -1)
+            if time < 0:
+                continue
+            stats[time] = folder['meta'].get('nli', {})
+
+        return stats
 
     def find(self, query=None, **kwargs):
         query = query or {}
@@ -179,6 +200,66 @@ class Experiment(Folder):
 
     @classmethod
     def filter_by_experimental_variables(cls, experimental_variables: List[Tuple[str, str, list]]):
-        # TODO: find out how to do a query in girder, possibly restucture storage of
+        # TODO: find out how to do a query in girder, possibly restructure storage of
         #  experimental variables
         return {}
+
+    def get_summary_stats(self, experiment, user) -> Dict[str, Dict]:
+        """Creates the summary statistics of an experiment in json form."""
+        experiment_complete = True
+        experimental_variables = experiment['meta']['experimental variables']
+        runs_per_config = experiment['meta']['runs per config']
+
+        simulation_model = Simulation()
+        completion = dict()
+        stats = dict()
+        configs = dict()
+        names = dict()
+
+        self._skipNLIFilter = True
+        # comments in the girder internals indicate that eager evaluation is better here,
+        # as there can be time outs
+        subfolders = list(
+            super(Experiment, self).childFolders(experiment, parentType='folder', user=user)
+        )
+        self._skipNLIFilter = False
+        for folder in subfolders:
+            # sanity check, that this is the right kind of folder
+            if (
+                not folder['nli']
+                or not folder['nli']['simulation']
+                or not folder['nli']['in_experiment']
+            ):
+                continue
+
+            names[str(folder['_id'])] = folder['name']
+
+            # an experiment is complete iff all of its simulations are complete
+            completion[str(folder['_id'])] = folder['nli']['complete']
+            experiment_complete = experiment_complete and completion[str(folder['_id'])]
+
+            # record the experimental variable's values
+            experimental_variable_values = dict()
+            for experimental_variable in experimental_variables:
+                module, parameter = (
+                    experimental_variable['module'],
+                    experimental_variable['parameter'],
+                )
+                value = folder['nli']['config'][module][parameter]
+                if module not in experimental_variable_values:
+                    experimental_variable_values[module] = dict()
+                experimental_variable_values[module][parameter] = value
+            configs[str(folder['_id'])] = experimental_variable_values
+
+            # record the actual stats
+            stats[str(folder['_id'])] = simulation_model.get_summary_stats(folder, user)
+
+        return {
+            'experiment_complete': experiment_complete,
+            'experimental_variables': experimental_variables,
+            'simulation config': configs,
+            'runs_per_config': runs_per_config,
+            'simulation completion': completion,
+            'stats': stats,
+            'names': names,
+        }
