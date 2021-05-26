@@ -1,5 +1,7 @@
+import itertools
 from typing import Dict, List, Tuple
 
+import girder
 from girder.constants import AccessType
 from girder.models.folder import Folder
 from girder_jobs.constants import JobStatus
@@ -210,11 +212,30 @@ class Experiment(Folder):
         experimental_variables = experiment['meta']['experimental variables']
         runs_per_config = experiment['meta']['runs per config']
 
+        # form a list of experimental groups, each simulation will be in one of these
+        param_names = [
+            (experimental_variable['module'], experimental_variable['parameter'])
+            for experimental_variable in experimental_variables
+        ]
+        girder.logprint(param_names)
+        experimental_group_params = [
+            tuple((module, param, value) for (module, param), value in zip(param_names, param_vals))
+            for param_vals in itertools.product(
+                *(
+                    experimental_variable['values']
+                    for experimental_variable in experimental_variables
+                )
+            )
+        ]
+
+        girder.logprint(experimental_group_params)
+
         simulation_model = Simulation()
         completion = dict()
         stats = dict()
         configs = dict()
         names = dict()
+        groups = dict()
 
         self._skipNLIFilter = True
         # comments in the girder internals indicate that eager evaluation is better here,
@@ -238,28 +259,28 @@ class Experiment(Folder):
             completion[str(folder['_id'])] = folder['nli']['complete']
             experiment_complete = experiment_complete and completion[str(folder['_id'])]
 
-            # record the experimental variable's values
-            experimental_variable_values = dict()
-            for experimental_variable in experimental_variables:
-                module, parameter = (
-                    experimental_variable['module'],
-                    experimental_variable['parameter'],
-                )
-                value = folder['nli']['config'][module][parameter]
-                if module not in experimental_variable_values:
-                    experimental_variable_values[module] = dict()
-                experimental_variable_values[module][parameter] = value
-            configs[str(folder['_id'])] = experimental_variable_values
+            # record which group this belongs to
+            for group_num, group_params in enumerate(experimental_group_params):
+                # for debugging, pre-seed with an error term which should be overwritten below
+                groups[str(folder['_id'])] = -1
+
+                if all(
+                    folder['nli']['config'][module][parameter] == value
+                    for module, parameter, value in group_params
+                ):
+                    groups[str(folder['_id'])] = group_num
+                    break
 
             # record the actual stats
             stats[str(folder['_id'])] = simulation_model.get_summary_stats(folder, user)
 
         return {
+            'experimental_group_params': experimental_group_params,
             'experiment_complete': experiment_complete,
-            'experimental_variables': experimental_variables,
-            'simulation config': configs,
-            'runs_per_config': runs_per_config,
-            'simulation completion': completion,
-            'stats': stats,
             'names': names,
+            'runs_per_config': runs_per_config,
+            'simulation config': configs,
+            'simulation completion': completion,
+            'simulation group map': groups,
+            'stats': stats,
         }
