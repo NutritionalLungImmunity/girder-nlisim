@@ -217,7 +217,7 @@ class Experiment(Folder):
             (experimental_variable['module'], experimental_variable['parameter'])
             for experimental_variable in experimental_variables
         ]
-        girder.logprint(param_names)
+
         experimental_group_params = [
             tuple((module, param, value) for (module, param), value in zip(param_names, param_vals))
             for param_vals in itertools.product(
@@ -227,8 +227,6 @@ class Experiment(Folder):
                 )
             )
         ]
-
-        girder.logprint(experimental_group_params)
 
         simulation_model = Simulation()
         completion = dict()
