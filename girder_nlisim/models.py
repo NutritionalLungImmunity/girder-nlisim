@@ -1,7 +1,6 @@
 import itertools
 from typing import Dict, List, Tuple
 
-import girder
 from girder.constants import AccessType
 from girder.models.folder import Folder
 from girder_jobs.constants import JobStatus
@@ -213,14 +212,19 @@ class Experiment(Folder):
         runs_per_config = experiment['meta']['runs per config']
 
         # form a list of experimental groups, each simulation will be in one of these
+        # param_names is a list of (module name, parameter name) tuples where each is
+        # one of the experimental variables
         param_names = [
             (experimental_variable['module'], experimental_variable['parameter'])
             for experimental_variable in experimental_variables
         ]
 
+        # experimental_group_params is a list of experimental treatments, where each experimental
+        # treatment is encoded as a tuple of 3-tuples (module, param, value) specifying the
+        # assignment of values to the experimental variables
         experimental_group_params = [
-            tuple((module, param, value) for (module, param), value in zip(param_names, param_vals))
-            for param_vals in itertools.product(
+            tuple((module, param, value) for (module, param), value in zip(param_names, param_values))
+            for param_values in itertools.product(
                 *(
                     experimental_variable['values']
                     for experimental_variable in experimental_variables
@@ -231,7 +235,6 @@ class Experiment(Folder):
         simulation_model = Simulation()
         completion = dict()
         stats = dict()
-        configs = dict()
         names = dict()
         groups = dict()
 
@@ -277,7 +280,6 @@ class Experiment(Folder):
             'experiment_complete': experiment_complete,
             'names': names,
             'runs_per_config': runs_per_config,
-            'simulation config': configs,
             'simulation completion': completion,
             'simulation group map': groups,
             'stats': stats,
