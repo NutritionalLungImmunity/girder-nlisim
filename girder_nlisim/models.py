@@ -223,7 +223,9 @@ class Experiment(Folder):
         # treatment is encoded as a tuple of 3-tuples (module, param, value) specifying the
         # assignment of values to the experimental variables
         experimental_group_params = [
-            tuple((module, param, value) for (module, param), value in zip(param_names, param_values))
+            tuple(
+                (module, param, value) for (module, param), value in zip(param_names, param_values)
+            )
             for param_values in itertools.product(
                 *(
                     experimental_variable['values']
