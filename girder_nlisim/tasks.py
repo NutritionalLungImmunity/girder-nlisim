@@ -62,10 +62,15 @@ class GirderConfig:
         return self.client.post(f'nli/simulation/{simulation_id}/complete')
 
     def set_status(self, job_id: str, status: int, current: float, total: float):
+        # This call will fail if the current job status is CANCELED.
         return self.client.put(
             f'job/{job_id}',
             parameters={'status': status, 'progressTotal': total, 'progressCurrent': current},
         )
+
+    def is_cancelled(self, job_id: str) -> bool:
+        job = self.client.get(f'job/{job_id}')
+        return job['status'] == JobStatus.CANCELED
 
     def upload(
         self, simulation_id: str, name: str, directory: Path, time: float, metadata: dict
@@ -108,12 +113,20 @@ def run_simulation(
             simulation = girder_config.initialize(
                 name, target_time, simulation_config, job['_id'], simulation_id
             )
-            girder_config.set_status(job['_id'], JobStatus.RUNNING, current_time, target_time)
+            try:
+                girder_config.set_status(job['_id'], JobStatus.RUNNING, current_time, target_time)
+            except Exception:
+                logger.info('Setting status failed, the simulation was probably cancelled')
+                return simulation
 
             time_step = 0
             previous_time: float = 0.0
 
             for state, status in run_iterator(simulation_config, target_time):
+                if girder_config.is_cancelled(job['_id']):
+                    logger.info('Cancelling job')
+                    return simulation
+
                 current_time = state.time
                 if floor(current_time) > floor(previous_time):
                     previous_time = current_time
@@ -128,9 +141,15 @@ def run_simulation(
                             simulation['_id'], step_name, temp_dir_path, current_time, stats
                         )
 
-                        girder_config.set_status(
-                            job['_id'], JobStatus.RUNNING, current_time, target_time
-                        )
+                        try:
+                            girder_config.set_status(
+                                job['_id'], JobStatus.RUNNING, current_time, target_time
+                            )
+                        except Exception:
+                            logger.info(
+                                'Setting status failed, the simulation was probably cancelled'
+                            )
+                            return simulation
 
                     time_step += 1
 

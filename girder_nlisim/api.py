@@ -3,6 +3,7 @@ import csv
 import io
 from io import StringIO
 import itertools
+from logging import getLogger
 import math
 import os
 from pathlib import Path
@@ -23,6 +24,8 @@ from nlisim.config import SimulationConfig
 
 from girder_nlisim.models import Experiment, Simulation
 from girder_nlisim.tasks import GirderConfig, run_simulation
+
+logger = getLogger(__name__)
 
 NLI_JOB_TYPE = 'nli_simulation'
 NLI_CONFIG_FILE = Path(__file__).parent / 'nli-config.ini'
@@ -147,6 +150,7 @@ class NLI(Resource):
         self.route('GET', ('experiment', ':id'), self.get_experiment)
         self.route('GET', ('experiment', ':id', 'csv'), self.get_experiment_csv)
         self.route('GET', ('experiment', ':id', 'json'), self.get_experiment_json)
+        self.route('POST', ('experiment', ':id', 'cancel'), self.cancel_experiment)
 
         self.route('GET', ('simulation',), self.list_simulations)
         self.route('GET', ('simulation', ':id'), self.get_simulation)
@@ -154,6 +158,7 @@ class NLI(Resource):
         self.route('POST', ('simulation', ':id', 'archive'), self.mark_simulation_archived)
         self.route('GET', ('simulation', ':id', 'csv'), self.get_simulation_csv)
         self.route('GET', ('simulation', ':id', 'json'), self.get_simulation_json)
+        self.route('POST', ('simulation', ':id', 'cancel'), self.cancel_simulation)
 
     @access.user
     @filtermodel(Job)
@@ -689,3 +694,48 @@ class NLI(Resource):
         simulation['nli']['archived'] = archived
         simulation_model = Simulation()
         return simulation_model.save(simulation)
+
+    @access.user
+    @filtermodel(Simulation)
+    @autoDescribeRoute(
+        Description('Cancel a simulation.')
+        .modelParam(
+            'id',
+            'The simulation id.',
+            model=Simulation,
+            level=AccessType.WRITE,
+            destName='simulation',
+        )
+        .errorResponse()
+        .errorResponse('Write access was denied on the simulation.', 403)
+    )
+    def cancel_simulation(self, simulation):
+        self._cancel_simulation(simulation)
+
+    @access.user
+    @filtermodel(Simulation)
+    @autoDescribeRoute(
+        Description('Cancel an experiment.')
+        .modelParam(
+            'id',
+            'The experiment id.',
+            model=Experiment,
+            level=AccessType.READ,
+            destName='experiment',
+        )
+        .errorResponse()
+        .errorResponse('Write access was denied on the experiment.', 403)
+    )
+    def cancel_experiment(self, experiment):
+        simulation_model = Simulation()
+        for simulation in simulation_model.childFolders(experiment['_id']):
+            try:
+                self._cancel_simulation(simulation)
+            except Exception:
+                logger.exception(f'Failed to cancel simulation "{simulation["_id"]}"')
+
+    def _cancel_simulation(self, simulation):
+        job_model = Job()
+        job_id = simulation['nli']['job_id']
+        job = job_model.load(job_id, force=True)
+        job_model.cancelJob(job)
