@@ -6,7 +6,6 @@ RUN pip install setuptools -U
 RUN mkdir /nli
 COPY setup.py setup.cfg README.md requirements.txt /nli/
 RUN pip install --editable /nli
-RUN pip install git+git://github.com/knappa/nlisim@henrique-model#egg=nlisim
 
 RUN mkdir /nli/girder_nlisim
 ADD girder_nlisim /nli/girder_nlisim/
