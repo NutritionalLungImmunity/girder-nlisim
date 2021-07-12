@@ -307,8 +307,8 @@ class NLI(Resource):
 
         for config_variant in configs:
             for run_number in range(runs_per_config):
-                # create an informative name for the run, noting the run number and the values of the experimental
-                # variables
+                # create an informative name for the run, noting the run number and the values
+                # of the experimental variables
                 run_name = name + "-run-" + str(run_number).zfill(max_run_digit_len)
                 for experimental_variable in experimental_variables:
                     run_name += (
@@ -728,7 +728,10 @@ class NLI(Resource):
     )
     def cancel_experiment(self, experiment):
         simulation_model = Simulation()
-        for simulation in simulation_model.childFolders(experiment['_id']):
+        for simulation in simulation_model.childFolders(experiment['_id'], 'folder'):
+            # TODO: I added the 'folder' so that the signature matches. This was my best guess;
+            #  'folder', 'user', 'collection' are the available options.
+            # noinspection PyBroadException
             try:
                 self._cancel_simulation(simulation)
             except Exception:

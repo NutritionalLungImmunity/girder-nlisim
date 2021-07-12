@@ -39,8 +39,8 @@ def update_status(event):
 
         # update job status
         experiment['nli']['per_sim_status'][str(simulation_id)] = job['status']
-        # any errors or cancellations count as an error or cancellation of the experiment, experiment
-        # doesn't become active until all of the sims are active.
+        # any errors or cancellations count as an error or cancellation of the experiment,
+        # experiment doesn't become active until all of the sims are active.
         if any(
             status == JobStatus.ERROR for status in experiment['nli']['per_sim_status'].values()
         ):
