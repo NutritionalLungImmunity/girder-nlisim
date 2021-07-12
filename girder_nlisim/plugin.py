@@ -1,5 +1,5 @@
 from girder import constants, events, logger
-from girder.plugin import getPlugin, GirderPlugin
+from girder.plugin import GirderPlugin, getPlugin
 from girder_jobs.constants import JobStatus
 from girder_jobs.models.job import Job
 
