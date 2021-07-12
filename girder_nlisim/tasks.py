@@ -1,6 +1,6 @@
+import os
 from logging import getLogger
 from math import floor
-import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Dict
@@ -11,7 +11,7 @@ from girder_client import GirderClient
 from girder_jobs.constants import JobStatus
 from nlisim.config import SimulationConfig
 from nlisim.postprocess import generate_summary_stats, generate_vtk
-from nlisim.solver import run_iterator, Status
+from nlisim.solver import Status, run_iterator
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 

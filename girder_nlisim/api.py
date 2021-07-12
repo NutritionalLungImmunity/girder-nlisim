@@ -1,18 +1,18 @@
 import copy
 import csv
 import io
-from io import StringIO
 import itertools
-from logging import getLogger
 import math
 import os
+from io import StringIO
+from logging import getLogger
 from pathlib import Path
 from typing import Any, Dict, List
 
 import attr
 from girder.api import access, rest
-from girder.api.describe import autoDescribeRoute, Description
-from girder.api.rest import filtermodel, Resource
+from girder.api.describe import Description, autoDescribeRoute
+from girder.api.rest import Resource, filtermodel
 from girder.constants import AccessType, SortDir
 from girder.exceptions import RestException
 from girder.models.folder import Folder
