@@ -8,6 +8,7 @@ from girder_jobs.constants import JobStatus
 
 class Simulation(Folder):
     def initialize(self):
+        # noinspection PyAttributeOutsideInit
         self._skipNLIFilter = False
         super(Simulation, self).initialize()
         self.ensureIndices(['nli.complete', 'nli.creator'])

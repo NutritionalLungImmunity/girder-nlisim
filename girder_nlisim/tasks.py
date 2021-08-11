@@ -1,6 +1,6 @@
+import os
 from logging import getLogger
 from math import floor
-import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Dict
@@ -11,7 +11,7 @@ from girder_client import GirderClient
 from girder_jobs.constants import JobStatus
 from nlisim.config import SimulationConfig
 from nlisim.postprocess import generate_summary_stats, generate_vtk
-from nlisim.solver import run_iterator, Status
+from nlisim.solver import Status, run_iterator
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
@@ -94,6 +94,7 @@ def run_simulation(
     target_time: float,
     job: Dict[str, Any],
     simulation_id: str,
+    visualize_interval: float = 10,  # output every x 'minutes' TODO: integrate with viz platform
 ) -> Dict[str, Any]:
     """Run a simulation and export postprocessed vtk files to girder."""
     current_time = 0
@@ -119,7 +120,7 @@ def run_simulation(
                 logger.info('Setting status failed, the simulation was probably cancelled')
                 return simulation
 
-            time_step = 0
+            time_step: int = 0
             previous_time: float = 0.0
 
             for state, status in run_iterator(simulation_config, target_time):
@@ -128,7 +129,7 @@ def run_simulation(
                     return simulation
 
                 current_time = state.time
-                if floor(current_time) > floor(previous_time):
+                if floor(current_time) > floor(visualize_interval + previous_time):
                     previous_time = current_time
                     logger.info(f'Simulation time {state.time}')
                     with TemporaryDirectory() as temp_dir:
