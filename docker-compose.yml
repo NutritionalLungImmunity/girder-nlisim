@@ -2,7 +2,6 @@
 version: "3.8"
 
 services:
-
   mongodb:
     image: mongo:4.2
     ports:
@@ -30,7 +29,6 @@ services:
     command: --host 0.0.0.0 --database mongodb://mongodb:27017/girder
     volumes:
       - data_assetstore:/data/assetstore
-      - /home/knappa/NutritionalLungImmunity:/NutritionalLungImmunity
 
   celery:
     build:
@@ -45,8 +43,6 @@ services:
       - C_FORCE_ROOT=1
     entrypoint: ["celery"]
     command: ["-A", "girder_nlisim.celery:app", "-l", "info", "worker"]
-    volumes:
-      - /home/knappa/NutritionalLungImmunity:/NutritionalLungImmunity
 
 volumes:
   data_db:
