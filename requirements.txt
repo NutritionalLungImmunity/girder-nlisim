@@ -1,7 +1,7 @@
 girder>=3.0.0
 girder-client>=3.0.0
 girder-jobs
-nlisim>=0.3.0-beta
+nlisim==0.3.0-beta.2
 setuptools>=56.0.0
 attrs~=20.3.0
 celery<5

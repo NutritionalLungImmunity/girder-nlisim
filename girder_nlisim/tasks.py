@@ -94,7 +94,7 @@ def run_simulation(
     target_time: float,
     job: Dict[str, Any],
     simulation_id: str,
-    visualize_interval: float = 10,  # output every x 'minutes' TODO: integrate with viz platform
+    visualize_interval: float = 30,  # output every x 'minutes' TODO: integrate with viz platform
 ) -> Dict[str, Any]:
     """Run a simulation and export postprocessed vtk files to girder."""
     current_time = 0
@@ -121,7 +121,7 @@ def run_simulation(
                 return simulation
 
             time_step: int = 0
-            previous_time: float = 0.0
+            previous_time: float = float('-inf')
 
             for state, status in run_iterator(simulation_config, target_time):
                 if girder_config.is_cancelled(job['_id']):
@@ -129,7 +129,7 @@ def run_simulation(
                     return simulation
 
                 current_time = state.time
-                if floor(current_time) > floor(visualize_interval + previous_time):
+                if current_time >= visualize_interval + previous_time:
                     previous_time = current_time
                     logger.info(f'Simulation time {state.time}')
                     with TemporaryDirectory() as temp_dir:
