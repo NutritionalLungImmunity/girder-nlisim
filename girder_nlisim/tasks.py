@@ -1,6 +1,5 @@
 import os
 from logging import getLogger
-from math import floor
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Dict
